@@ -147,17 +147,6 @@ thread_print_stats (void)
           idle_ticks, kernel_ticks, user_ticks);
 }
 
-/* Checks priority and
-   yields cpu when current thread does not have the highest priority */
-void
-thread_check_priority (void)
-{
-  if (!list_empty (&ready_list) &&
-      thread_current ()->priority <
-      list_entry (list_front (&ready_list), struct thread, elem)->priority)
-    thread_yield();
-}
-
 /* Creates a new kernel thread named NAME with the given initial
    PRIORITY, which executes FUNCTION passing AUX as the argument,
    and adds it to the ready queue.  Returns the thread identifier
@@ -230,13 +219,6 @@ thread_block (void)
 
   thread_current ()->status = THREAD_BLOCKED;
   schedule ();
-}
-
-bool
-thread_priority_desc (struct list_elem *f, struct list_elem *b, void *aux UNUSED)
-{
-  return list_entry (f, struct thread, elem)->priority
-       > list_entry (b, struct thread, elem)->priority;
 }
 
 /* Transitions a blocked thread T to the ready-to-run state.
@@ -364,6 +346,26 @@ int
 thread_get_priority (void)
 {
   return thread_current ()->priority;
+}
+
+/* Checks priority and
+   yields cpu when current thread does not have the highest priority */
+void
+thread_check_priority (void)
+{
+  if (!list_empty (&ready_list) &&
+      thread_current ()->priority <
+      list_entry (list_front (&ready_list), struct thread, elem)->priority)
+    thread_yield();
+}
+
+/* Returns bool whether thread f has higher priority compared to thread b */
+bool
+thread_priority_desc (const struct list_elem *f, const struct list_elem *b,
+                      void *aux UNUSED)
+{
+  return list_entry (f, struct thread, elem)->priority
+       > list_entry (b, struct thread, elem)->priority;
 }
 
 /* Sets the current thread's nice value to NICE. */
