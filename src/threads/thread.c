@@ -63,6 +63,9 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
 
+/* Ticks when at least one thread needs to wake up */
+int64_t min_wakeup_ticks;
+
 /* Global load average in fp */
 int load_avg;
 
@@ -155,17 +158,6 @@ thread_print_stats (void)
           idle_ticks, kernel_ticks, user_ticks);
 }
 
-/* Checks priority and
-   yields cpu when current thread does not have the highest priority */
-void
-thread_check_priority (void)
-{
-  if (!list_empty (&ready_list) &&
-      thread_current ()->priority <
-      list_entry (list_front (&ready_list), struct thread, elem)->priority)
-    thread_yield();
-}
-
 /* Creates a new kernel thread named NAME with the given initial
    PRIORITY, which executes FUNCTION passing AUX as the argument,
    and adds it to the ready queue.  Returns the thread identifier
@@ -240,13 +232,6 @@ thread_block (void)
   schedule ();
 }
 
-bool
-thread_priority_desc (struct list_elem *f, struct list_elem *b, void *aux UNUSED)
-{
-  return list_entry (f, struct thread, elem)->priority
-       > list_entry (b, struct thread, elem)->priority;
-}
-
 /* Transitions a blocked thread T to the ready-to-run state.
    This is an error if T is not blocked.  (Use thread_yield() to
    make the running thread ready.)
@@ -273,18 +258,20 @@ thread_unblock (struct thread *t)
 void
 thread_sleep (int64_t ticks)
 {
+  enum intr_level old_level;
   struct thread *t;
 
-  enum intr_level old_level = intr_disable ();
-  t = thread_current ();
+  old_level = intr_disable();
+  t = thread_current();
 
   // idle thread must not sleep
   ASSERT(t != idle_thread);
 
   t->wakeup_ticks = ticks;
+  if (min_wakeup_ticks > ticks)
+    min_wakeup_ticks = ticks;
   list_push_back (&sleep_list, &t->elem);
   thread_block ();
-
   intr_set_level (old_level);
 }
 
@@ -294,22 +281,23 @@ thread_wake (int64_t ticks)
 {
   struct list_elem *e;
   struct thread *t;
-
-  enum intr_level old_level = intr_disable ();
+  min_wakeup_ticks = INT64_MAX;
 
   for (e = list_begin (&sleep_list); e != list_end (&sleep_list);)
   {
     t = list_entry (e, struct thread, elem);
     if (t->wakeup_ticks <= ticks)
-      {
-        e = list_remove (e);
-        thread_unblock (t);
-      }
+    {
+      e = list_remove (e);
+      thread_unblock (t);
+    }
     else
-      break;
+    {
+      if (min_wakeup_ticks > t->wakeup_ticks)
+        min_wakeup_ticks = t->wakeup_ticks;
+      e = list_next (e);
+    }
   }
-
-  intr_set_level (old_level);
 }
 
 /* Returns the name of the running thread. */

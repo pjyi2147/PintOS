@@ -92,7 +92,7 @@ timer_sleep (int64_t ticks)
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  thread_sleep (ticks + start);
+  thread_sleep (start + ticks);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -171,8 +171,11 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
-  thread_wake (ticks);
-
+  if (ticks >= min_wakeup_ticks)
+  {
+    thread_wake (ticks);
+  }
+  
   if (thread_mlfqs)
   {
     mlfqs_add1_recent_cpu ();
