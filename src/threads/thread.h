@@ -104,7 +104,6 @@ struct thread
     struct list donation_list;           /* list containing elements that donated priority to current thread */
     struct list_elem donation_elem;      /* the element */
 
-   
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -150,8 +149,9 @@ void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
-void thread_check_priority (void);
-bool thread_priority_desc (const struct list_elem *, const struct list_elem *, void *);
+void thread_check_priority_preemption (void);
+bool priority_compare_desc (const struct list_elem *, const struct list_elem *,
+                           void *);
 
 void mlfqs_add1_recent_cpu (void);
 void mlfqs_recalc_priority (void);
@@ -163,11 +163,9 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
-/* Newly added for priority donation */
-void priority_donation(void);
-void priority_update(void);
-void compare_priority(const struct list_elem* x, const struct list_elem* y, void* aux UNUSED);
-void remove_chain(struct lock *lock);
-void preempt_running_thread(void);
+void priority_donation (void);
+void priority_update (void);
+void remove_chain (struct lock *);
+void update_donated_priority (void);
 
 #endif /* threads/thread.h */
