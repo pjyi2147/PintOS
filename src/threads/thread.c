@@ -29,6 +29,9 @@ static struct list ready_list;
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
+/* List of sleeping processes */
+static struct list sleep_list;
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -96,6 +99,7 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
+  list_init (&sleep_list);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -149,6 +153,17 @@ thread_print_stats (void)
 {
   printf ("Thread: %lld idle ticks, %lld kernel ticks, %lld user ticks\n",
           idle_ticks, kernel_ticks, user_ticks);
+}
+
+/* Checks priority and
+   yields cpu when current thread does not have the highest priority */
+void
+thread_check_priority (void)
+{
+  if (!list_empty (&ready_list) &&
+      thread_current ()->priority <
+      list_entry (list_front (&ready_list), struct thread, elem)->priority)
+    thread_yield();
 }
 
 /* Creates a new kernel thread named NAME with the given initial
@@ -225,6 +240,13 @@ thread_block (void)
   schedule ();
 }
 
+bool
+thread_priority_desc (struct list_elem *f, struct list_elem *b, void *aux UNUSED)
+{
+  return list_entry (f, struct thread, elem)->priority
+       > list_entry (b, struct thread, elem)->priority;
+}
+
 /* Transitions a blocked thread T to the ready-to-run state.
    This is an error if T is not blocked.  (Use thread_yield() to
    make the running thread ready.)
@@ -244,6 +266,49 @@ thread_unblock (struct thread *t)
   ASSERT (t->status == THREAD_BLOCKED);
   list_insert_ordered (&ready_list, &t->elem, thread_priority_desc, NULL);
   t->status = THREAD_READY;
+  intr_set_level (old_level);
+}
+
+/* Set current thread to sleep until ticks and blocks it */
+void
+thread_sleep (int64_t ticks)
+{
+  struct thread *t;
+
+  enum intr_level old_level = intr_disable ();
+  t = thread_current ();
+
+  // idle thread must not sleep
+  ASSERT(t != idle_thread);
+
+  t->wakeup_ticks = ticks;
+  list_push_back (&sleep_list, &t->elem);
+  thread_block ();
+
+  intr_set_level (old_level);
+}
+
+/* Wakes up all sleeping threads before ticks and unblocks them */
+void
+thread_wake (int64_t ticks)
+{
+  struct list_elem *e;
+  struct thread *t;
+
+  enum intr_level old_level = intr_disable ();
+
+  for (e = list_begin (&sleep_list); e != list_end (&sleep_list);)
+  {
+    t = list_entry (e, struct thread, elem);
+    if (t->wakeup_ticks <= ticks)
+      {
+        e = list_remove (e);
+        thread_unblock (t);
+      }
+    else
+      break;
+  }
+
   intr_set_level (old_level);
 }
 
@@ -341,7 +406,7 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority)
 {
-  // When mlfqs is enabled, proirity is recalculated
+  // When mlfqs is enabled, priority is recalculated automatically
   if (thread_mlfqs)
     return;
 
