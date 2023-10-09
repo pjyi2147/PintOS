@@ -254,6 +254,14 @@ thread_unblock (struct thread *t)
   intr_set_level (old_level);
 }
 
+bool
+thread_sleep_asc (const struct list_elem *f, const struct list_elem *b,
+                   void *aux UNUSED)
+{
+  return list_entry (f, struct thread, elem)->wakeup_ticks
+       < list_entry (b, struct thread, elem)->wakeup_ticks;
+}
+
 /* Set current thread to sleep until ticks and blocks it */
 void
 thread_sleep (int64_t ticks)
@@ -270,7 +278,7 @@ thread_sleep (int64_t ticks)
   t->wakeup_ticks = ticks;
   if (min_wakeup_ticks > ticks)
     min_wakeup_ticks = ticks;
-  list_push_back (&sleep_list, &t->elem);
+  list_insert_ordered (&sleep_list, &t->elem, thread_sleep_asc, NULL);
   thread_block ();
   intr_set_level (old_level);
 }
@@ -281,7 +289,6 @@ thread_wake (int64_t ticks)
 {
   struct list_elem *e;
   struct thread *t;
-  min_wakeup_ticks = INT64_MAX;
 
   for (e = list_begin (&sleep_list); e != list_end (&sleep_list);)
   {
@@ -293,9 +300,8 @@ thread_wake (int64_t ticks)
     }
     else
     {
-      if (min_wakeup_ticks > t->wakeup_ticks)
-        min_wakeup_ticks = t->wakeup_ticks;
-      e = list_next (e);
+      min_wakeup_ticks = t->wakeup_ticks;
+      break;
     }
   }
 }
