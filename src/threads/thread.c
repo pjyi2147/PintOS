@@ -816,7 +816,7 @@ update_donated_priority (void)
 
 /* remove threads' donation_elem that donated to the current thread */
 void
-remove_chain (struct lock *lock)
+remove_donation_chain (struct lock *lock)
 {
   struct thread *cur = thread_current ();
   struct list_elem *cur_donation_elem = list_begin (&cur->donation_list);

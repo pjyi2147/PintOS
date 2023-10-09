@@ -164,8 +164,7 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 void thread_donate_priority (void);
-void priority_update (void);
-void remove_chain (struct lock *);
+void remove_donation_chain (struct lock *);
 void update_donated_priority (void);
 
 #endif /* threads/thread.h */

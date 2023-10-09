@@ -251,7 +251,7 @@ lock_release (struct lock *lock)
 
   if (!thread_mlfqs)
   {
-    remove_chain (lock);
+    remove_donation_chain (lock);
     update_donated_priority ();
   }
 
