@@ -214,8 +214,6 @@ thread_create (const char *name, int priority,
   
   /* thread_check_priority (); */
   preempt_running_thread(); /* newly added */
-
-
   return tid;
 }
 
@@ -412,6 +410,10 @@ thread_set_priority (int new_priority)
   /* thread_check_priority (); */
   priority_update();
   preempt_running_thread();
+
+  thread_current ()->priority = new_priority;
+  thread_check_priority ();
+
 }
 
 /* Returns the current thread's priority. */
