@@ -403,7 +403,6 @@ thread_set_priority (int new_priority)
   if (thread_mlfqs)
     return;
 
-
   thread_current ()->init_priority = new_priority;
   thread_current ()->priority = new_priority;
 
@@ -438,7 +437,7 @@ priority_compare_desc (const struct list_elem *f, const struct list_elem *b,
        > list_entry (b, struct thread, elem)->priority;
 }
 
-/* Calculates priority */
+/* Calculates and sets priority */
 void
 mlfqs_calc_priority (struct thread *t)
 {
@@ -772,7 +771,7 @@ allocate_tid (void)
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
 void
-priority_donation(void)
+priority_donation (void)
 {
   struct thread *curr = thread_current ();
   int curr_priority = curr->priority;
@@ -791,7 +790,7 @@ priority_donation(void)
 }
 
 void
-update_donated_priority(void)
+update_donated_priority (void)
 {
   struct thread *curr = thread_current ();
 
