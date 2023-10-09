@@ -24,6 +24,9 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+#define RECENT_CPU_DEFAULT 0            /* Default recent_cpu value */
+#define NICE_DEFAULT 0                  /* Default nice value */
+
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -88,11 +91,20 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    int nice;                           /* Niceness in integer */
+    int recent_cpu;                     /* Recent CPU in fp */
+    int64_t wakeup_ticks;               /* ticks to wake up */
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+    /* Used for priority donation */
+    int init_priority;                   /* initial priority */
+    struct lock *lock_waiting;           /* the lock that the current thread is waiting for*/
+    struct list donation_list;           /* list containing elements that donated priority to current thread */
+    struct list_elem donation_elem;      /* the element */
 
+   
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -107,6 +119,9 @@ struct thread
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
 
+/* minimum wakeup_ticks */
+extern int64_t min_wakeup_ticks;
+
 void thread_init (void);
 void thread_start (void);
 
@@ -118,6 +133,9 @@ tid_t thread_create (const char *name, int priority, thread_func *, void *);
 
 void thread_block (void);
 void thread_unblock (struct thread *);
+
+void thread_sleep (int64_t);
+void thread_wake (int64_t);
 
 struct thread *thread_current (void);
 tid_t thread_tid (void);
@@ -132,10 +150,24 @@ void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
+void thread_check_priority (void);
+bool thread_priority_desc (const struct list_elem *, const struct list_elem *, void *);
+
+void mlfqs_add1_recent_cpu (void);
+void mlfqs_recalc_priority (void);
+void mlfqs_recalc_recent_cpu (void);
+void mlfqs_calc_load_avg (void);
 
 int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+/* Newly added for priority donation */
+void priority_donation(void);
+void priority_update(void);
+void compare_priority(const struct list_elem* x, const struct list_elem* y, void* aux UNUSED);
+void remove_chain(struct lock *lock);
+void preempt_running_thread(void);
 
 #endif /* threads/thread.h */
