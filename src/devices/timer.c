@@ -175,7 +175,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
   {
     thread_wake (ticks);
   }
-  
+
   if (thread_mlfqs)
   {
     mlfqs_add1_recent_cpu ();
@@ -184,8 +184,8 @@ timer_interrupt (struct intr_frame *args UNUSED)
       mlfqs_recalc_priority();
       if (ticks % TIMER_FREQ == 0)
       {
-        mlfqs_recalc_recent_cpu();
         mlfqs_calc_load_avg ();
+        mlfqs_recalc_recent_cpu();
       }
     }
   }
