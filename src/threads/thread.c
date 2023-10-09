@@ -408,12 +408,11 @@ thread_set_priority (int new_priority)
   thread_current()->init_priority = new_priority;
 
   /* thread_check_priority (); */
-  priority_update();
+  update_donated_priority();
   preempt_running_thread();
 
   thread_current ()->priority = new_priority;
-  thread_check_priority ();
-
+  thread_check_priority_preemption();
 }
 
 /* Returns the current thread's priority. */
@@ -426,7 +425,7 @@ thread_get_priority (void)
 /* Checks priority and
    yields cpu when current thread does not have the highest priority */
 void
-thread_check_priority (void)
+thread_check_priority_preemption (void)
 {
   if (!list_empty (&ready_list) &&
       thread_current ()->priority <
@@ -527,7 +526,7 @@ thread_set_nice (int nice)
   enum intr_level old_level = intr_disable ();
   thread_current ()->nice = nice;
   mlfqs_calc_priority (thread_current ());
-  thread_check_priority ();
+  thread_check_priority_preemption ();
   intr_set_level (old_level);
 }
 
@@ -790,25 +789,18 @@ void priority_donation(void)
       break; /* Go down until current thread not waiting for any lock */
     }
     curr = curr->lock_waiting->holder;
-    curr->priority = priority_donation;
+    curr->priority = curr_priority;
   }
   /* if lock holder of curr has a lock, holder's priority -> curr's priority */
 }
 
 /* if priority of first thread is higher, it returns TRUE and FALSE otherwise */
-void compare_priority(const struct list_elem* x, const struct list_elem* y, void* aux UNUSED)
+void priority_compare_desc(const struct list_elem* x, const struct list_elem* y, void* aux UNUSED)
 {
-  if (list_entry(x, struct thread, elem)->priority > list_entry(y, struct thread, elem)->priority)
-  {
-    return true;
-  }
-  else
-  {
-    return false;
-  }
+  return (list_entry(x, struct thread, elem)->priority > list_entry(y, struct thread, elem)->priority)
 }
 
-void priority_update(void)
+void update_donated_priority(void)
 {
   struct thread *curr = thread_current();
 
@@ -820,7 +812,7 @@ void priority_update(void)
 
   else
   {
-    list_sort(&curr->donation_list, compare_priority, NULL);
+    list_sort(&curr->donation_list, priority_compare_desc, NULL);
     struct thread *max_priority_thread = list_entry(list_front(&curr->donation_list), struct thread, donation_elem);
 
     if(max_priority_thread->priority > curr->init_priority)
