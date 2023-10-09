@@ -163,7 +163,7 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
-void priority_donation (void);
+void thread_donate_priority (void);
 void priority_update (void);
 void remove_chain (struct lock *);
 void update_donated_priority (void);
