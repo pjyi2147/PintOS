@@ -23,6 +23,7 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+#define FILE_MAX 128                    /* Maximum number of files a process can open */
 
 /* A kernel thread or user process.
 
@@ -96,6 +97,10 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+
+    // Project 2
+    struct file *file_array[FILE_MAX];
+    uint8_t min_fd;
 #endif
 
     /* Owned by thread.c. */
