@@ -3,13 +3,21 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/synch.h"
+#include "threads/vaddr.h"
+#include "filesys/filesys.h"
+#include "filesys/file.h"
+#include "lib/kernel/stdio.h"
 
 static void syscall_handler (struct intr_frame *);
+
+struct lock file_lock;
 
 void
 syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+  lock_init(&file_lock);
 }
 
 void
@@ -37,46 +45,172 @@ syscall_wait (tid_t pid UNUSED)
 bool
 syscall_create (const char *file, unsigned initial_size)
 {
+  if (!is_user_vaddr(file))
+  {
+    syscall_exit(-1);
+  }
+
+  return filesys_create(file, initial_size);
 }
 
 bool
 syscall_remove (const char *file)
 {
+  if (!is_user_vaddr(file))
+  {
+    syscall_exit(-1);
+  }
+
+  return filesys_remove(file);
 }
 
 int
 syscall_open (const char *file)
 {
+  if (!is_user_vaddr(file))
+  {
+    syscall_exit(-1);
+  }
+
+  struct file *f = filesys_open(file);
+  if (f == NULL)
+  {
+    return -1;
+  }
+
+  struct thread *t = thread_current();
+  int fd = t->min_fd;
+  t->file_array[fd] = f;
+
+  for (int i = 0; i < FILE_MAX; i++)
+  {
+    if (t->file_array[i] == NULL)
+    {
+      t->min_fd = i;
+      break;
+    }
+  }
+
+  return fd;
 }
 
 int
 syscall_filesize (int fd)
 {
+  struct thread *t = thread_current();
+  struct file *f = t->file_array[fd];
+  if (f == NULL)
+  {
+    return -1;
+  }
+
+  return file_length(f);
 }
 
 int
 syscall_read (int fd, void *buffer, unsigned size)
 {
+  // STDIN
+  if (fd == 0)
+  {
+    for (int i = 0; i < size; i++)
+    {
+      ((char *)buffer)[i] = input_getc();
+    }
+    return size;
+  }
+
+  // STDOUT
+  else if (fd == 1)
+  {
+    return -1;
+  }
+
+  struct thread *t = thread_current();
+  struct file *f = t->file_array[fd];
+  if (f == NULL)
+  {
+    return -1;
+  }
+
+  lock_acquire(&file_lock);
+  int ret = file_read(f, buffer, size);
+  lock_release(&file_lock);
+
+  return ret;
 }
 
 int
 syscall_write (int fd, const void *buffer, unsigned size)
 {
+  // STDIN
+  if (fd == 0)
+  {
+    return -1;
+  }
+
+  // STDOUT
+  else if (fd == 1)
+  {
+    putbuf(buffer, size);
+    return size;
+  }
+
+  struct thread *t = thread_current();
+  struct file *f = t->file_array[fd];
+  if (f == NULL)
+  {
+    return -1;
+  }
+
+  lock_acquire(&file_lock);
+  int ret = file_write(f, buffer, size);
+  lock_release(&file_lock);
+  return ret;
 }
 
 void
 syscall_seek (int fd, unsigned position)
 {
+  struct thread *t = thread_current();
+  struct file *f = t->file_array[fd];
+  if (f == NULL)
+  {
+    return;
+  }
+
+  file_seek(f, position);
 }
 
 unsigned
 syscall_tell (int fd)
 {
+  struct thread *t = thread_current();
+  struct file *f = t->file_array[fd];
+  if (f == NULL)
+  {
+    return -1;
+  }
+
+  return file_tell(f);
 }
 
 void
 syscall_close (int fd)
 {
+  struct thread *t = thread_current();
+  struct file *f = t->file_array[fd];
+  if (f == NULL)
+  {
+    return;
+  }
+
+  file_close(f);
+  t->file_array[fd] = NULL;
+  if (fd < t->min_fd)
+  {
+    t->min_fd = fd;
+  }
 }
 
 static void
