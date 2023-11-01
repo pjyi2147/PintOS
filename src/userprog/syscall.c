@@ -80,15 +80,25 @@ syscall_open (const char *file)
 
   struct thread *t = thread_current();
   int fd = t->min_fd;
+  ASSERT(fd < FILE_MAX);
+  ASSERT(t->file_array[fd] == NULL);
   t->file_array[fd] = f;
 
-  for (int i = 0; i < FILE_MAX; i++)
+  bool is_min_fd = false;
+  for (int i = 2; i < FILE_MAX; i++)
   {
     if (t->file_array[i] == NULL)
     {
       t->min_fd = i;
+      is_min_fd = true;
       break;
     }
+  }
+
+  if (!is_min_fd)
+  {
+    t->min_fd = FILE_MAX;
+    return -1;
   }
 
   return fd;
@@ -110,6 +120,11 @@ syscall_filesize (int fd)
 int
 syscall_read (int fd, void *buffer, unsigned size)
 {
+  // Check buffer
+  if (!is_user_vaddr(buffer))
+  {
+    syscall_exit(-1);
+  }
   // STDIN
   if (fd == 0)
   {
@@ -143,12 +158,16 @@ syscall_read (int fd, void *buffer, unsigned size)
 int
 syscall_write (int fd, const void *buffer, unsigned size)
 {
+  // Check buffer
+  if (!is_user_vaddr(buffer))
+  {
+    syscall_exit(-1);
+  }
   // STDIN
   if (fd == 0)
   {
     return -1;
   }
-
   // STDOUT
   else if (fd == 1)
   {
