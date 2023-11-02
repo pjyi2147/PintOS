@@ -71,7 +71,7 @@ argument_stack (int argc, char **argv, void **sp)
 
   int word_align_len = 4 - total_len % 4;
   *sp -= word_align_len;
-  memset(*sp, 0, word_align);
+  memset(*sp, 0, word_align_len);
 
   *sp -= 4;
   **(uint32_t **)sp = 0; // push NULL
