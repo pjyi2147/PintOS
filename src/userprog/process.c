@@ -45,7 +45,7 @@ process_execute (const char *file_name)
   token1 = strtok_r (file_name, " ", &token2);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (token1, PRI_DEFAULT, start_process, fn_copy); //file_name -> token1
+  tid = thread_create (token1, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
   return tid;
@@ -127,7 +127,6 @@ start_process (void *file_name_)
   /* argument passing */
   void **esp = &if_.esp;
   argument_stack(argc, argv, &if_.esp);
-
 
   hex_dump(if_.esp, if_.esp, PHYS_BASE - (uint32_t)*esp, true);
 
