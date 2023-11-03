@@ -29,11 +29,17 @@ syscall_halt (void)
 void
 syscall_exit (int status)
 {
+  struct thread *t = thread_current();
+  t->exit_status = status;
+  printf("%s: exit(%d)\n", t->name, status);
+  thread_exit();
 }
 
 tid_t
 syscall_exec (const char *cmd_line)
 {
+  is_user_vaddr (cmd_line);
+  return process_execute (cmd_line);
 }
 
 int
@@ -49,7 +55,6 @@ syscall_create (const char *file, unsigned initial_size)
   {
     syscall_exit(-1);
   }
-
   return filesys_create(file, initial_size);
 }
 
@@ -60,7 +65,6 @@ syscall_remove (const char *file)
   {
     syscall_exit(-1);
   }
-
   return filesys_remove(file);
 }
 
@@ -113,7 +117,6 @@ syscall_filesize (int fd)
   {
     return -1;
   }
-
   return file_length(f);
 }
 
@@ -151,7 +154,6 @@ syscall_read (int fd, void *buffer, unsigned size)
   lock_acquire(&file_lock);
   int ret = file_read(f, buffer, size);
   lock_release(&file_lock);
-
   return ret;
 }
 
@@ -197,7 +199,6 @@ syscall_seek (int fd, unsigned position)
   {
     return;
   }
-
   file_seek(f, position);
 }
 
@@ -210,7 +211,6 @@ syscall_tell (int fd)
   {
     return -1;
   }
-
   return file_tell(f);
 }
 
@@ -282,7 +282,7 @@ syscall_handler (struct intr_frame *f)
   }
 }
 
-void 
+void
 exit (int stat)
 {
   printf ("%s: exit(%d)\n", thread_name(), stat);

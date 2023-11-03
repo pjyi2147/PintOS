@@ -99,6 +99,7 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
 
     // Project 2
+    int exit_status;                    /* Exit status of the thread */
     struct file *file_array[FILE_MAX];
     uint8_t min_fd;
 #endif
