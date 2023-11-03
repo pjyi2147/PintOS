@@ -38,12 +38,62 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  /* argument passing */
+  char *token1;
+  char *token2;
+
+  token1 = strtok_r (file_name, " ", &token2);
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (token1, PRI_DEFAULT, start_process, fn_copy); //file_name -> token1
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
   return tid;
 }
+
+/* Argument stack for argument passing */
+void
+argument_stack (int argc, char **argv, void **sp)
+{
+  char *addr[64];
+  int total_len = 0;
+  int i;
+
+  for (i = argc - 1; i >= 0; i --)
+   {
+     int len_arg = strlen(argv[i]) + 1;
+     total_len += len_arg;
+     *sp -= len_arg;
+     
+     memcpy(*sp, argv[i], len_arg);
+     addr[i] = *sp;
+   }
+
+  int word_align_len = 4 - total_len % 4;
+  *sp -= word_align_len;
+  memset(*sp, 0, word_align_len);
+
+  *sp -= 4;
+  **(uint32_t **)sp = 0; // push NULL
+
+  for(i = argc - 1; i >= 0; i --) // pushes argv address
+  {
+    *sp -= 4;
+    **(uint32_t **)sp = addr[i];
+  }
+
+  /* push argv, c */
+  *sp -= 4;
+  **(uint32_t **)sp = *sp + 4;
+  *sp -= 4;
+  **(uint32_t **)sp = argc
+
+  /* push ret address */
+  *sp -= 4;
+  **(uint32_t **)sp = 0;
+}
+
+
 
 /* A thread function that loads a user process and starts it
    running. */
@@ -54,12 +104,29 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
+  /* argument passing */
+  int argc;
+  char *argv[64];
+  char *token1;
+  char *token2;
+
+  token1 = strtok_r(file_name, " ", &token2);
+  while (token1 != NULL)
+  {
+     argv[argc] = token1;
+     argc ++;
+     token1 = strtok_r(file_name, " ", &token2);
+  }
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
+
+  /* argument passing */
+  argument_stack(argc, argv, &if_.esp);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
