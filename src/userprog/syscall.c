@@ -38,8 +38,17 @@ syscall_exit (int status)
 tid_t
 syscall_exec (const char *cmd_line)
 {
-  is_user_vaddr (cmd_line);
-  return process_execute (cmd_line);
+  if (!is_user_vaddr (cmd_line))
+  {
+    syscall_exit(-1);
+  }
+  char *fn_copy = palloc_get_page(0);
+  if (fn_copy == NULL)
+  {
+    syscall_exit(-1);
+  }
+  strlcpy(fn_copy, cmd_line, PGSIZE);
+  return process_execute (fn_copy);
 }
 
 int
@@ -104,7 +113,6 @@ syscall_open (const char *file)
     t->min_fd = FILE_MAX;
     return -1;
   }
-
   return fd;
 }
 
