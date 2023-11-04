@@ -26,6 +26,14 @@ get_argument (void *esp, void **arg, int count)
   }
 }
 
+bool validate_addr (void *addr)
+{
+  if (addr >= STACK_BOTTOM && addr < PHYS_BASE && addr != 0)
+    return true;
+
+  return false;
+}
+
 void
 syscall_init (void)
 {
@@ -258,12 +266,10 @@ syscall_close (int fd)
 static void
 syscall_handler (struct intr_frame *f)
 {
-  if (!is_user_vaddr(f->esp))
-  {
+  if (validate_addr(f->esp) == false)
     syscall_exit(-1);
-  }
 
-  // printf("system call! %d\n", *(int *)f->esp);
+  // printf("system call! %u\n", f->esp);
 
   void *arg[3];
 
@@ -322,6 +328,9 @@ syscall_handler (struct intr_frame *f)
     case SYS_CLOSE:
       get_argument(f->esp + 4, arg, 1);
       syscall_close((int)arg[0]);
+      break;
+    default:
+      syscall_exit(-1);
       break;
   }
 }
