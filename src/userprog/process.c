@@ -38,11 +38,59 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  /* argument passing */
+  char *token1;
+  char *token2;
+
+  token1 = strtok_r (file_name, " ", &token2);
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (token1, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
   return tid;
+}
+
+/* Argument stack for argument passing */
+void
+argument_stack (int argc, char **argv, void **sp)
+{
+  char *addr[64];
+  int total_len = 0;
+  int i;
+
+  for (i = argc - 1; i >= 0; i--)
+  {
+    int len_arg = strlen(argv[i]) + 1;
+    total_len += len_arg;
+    *sp -= len_arg;
+
+    memcpy(*sp, argv[i], len_arg);
+    addr[i] = *sp;
+  }
+
+  int word_align_len = total_len % 4;
+  *sp -= word_align_len;
+  memset(*sp, 0, word_align_len);
+
+  *sp -= 4;
+  **(uint32_t **)sp = 0; // push NULL
+
+  for(i = argc - 1; i >= 0; i --) // pushes argv address
+  {
+    *sp -= 4;
+    **(uint32_t **)sp = addr[i];
+  }
+
+  /* push argv, c */
+  *sp -= 4;
+  **(uint32_t **)sp = *sp + 4;
+  *sp -= 4;
+  **(uint32_t **)sp = argc;
+
+  /* push ret address */
+  *sp -= 4;
+  **(uint32_t **)sp = 0;
 }
 
 /* A thread function that loads a user process and starts it
@@ -54,12 +102,33 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
+  /* argument passing */
+  int argc = 0;
+  char *argv[64];
+
+  char *token1;
+  char *token2;
+
+  token1 = strtok_r(file_name, " ", &token2);
+  while (token1 != NULL)
+  {
+    argv[argc] = token1;
+    argc++;
+    token1 = strtok_r(NULL, " ", &token2);
+  }
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
+
+  /* argument passing */
+  void **esp = &if_.esp;
+  argument_stack(argc, argv, &if_.esp);
+
+  // hex_dump(if_.esp, if_.esp, PHYS_BASE - (uint32_t)*esp, true);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -88,8 +157,11 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED)
 {
-  while (1)
-    ;
+  for (int i = 0; i < 987654321; i++)
+  {
+
+  }
+  return -1;
 }
 
 /* Free the current process's resources. */
@@ -438,8 +510,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        // TODO: implement argument passing; this is a placeholder
-        *esp = PHYS_BASE - 12;
+        *esp = PHYS_BASE;
       else
         palloc_free_page (kpage);
     }

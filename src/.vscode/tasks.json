@@ -13,7 +13,7 @@
       "label": "pintos-qemu",
       "type": "shell",
       "command": "~/.local/bin/pintos",
-      "args": ["--gdb", "--", "run", "alarm-multiple"],
+      "args": ["--gdb", "--filesys-size=2", "-p", "~/postech-wsl/CSED312-OS/pintos/src/userprog/build/tests/userprog/args-single", "-a", "args-single", "--", "-f", "run", "args-single hey"],
       "isBackground": true,
       "problemMatcher": [
         {
@@ -37,7 +37,7 @@
       "label": "pintos-bochs",
       "type": "shell",
       "command": "~/.local/bin/pintos",
-      "args": ["--bochs", "--gdb", "--", "run", "alarm-multiple"],
+      "args": ["--bochs", "--gdb", "--filesys_size=2", "--", "run", "args-none"],
       "isBackground": true,
       "problemMatcher": [
         {

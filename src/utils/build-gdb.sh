@@ -1,3 +1,2 @@
-cd /home/patrick/postech-wsl/CSED312-OS/pintos/src/threads
-make clean
+cd /home/patrick/postech-wsl/CSED312-OS/pintos/src/userprog
 make
