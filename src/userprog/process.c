@@ -128,7 +128,7 @@ start_process (void *file_name_)
   void **esp = &if_.esp;
   argument_stack(argc, argv, &if_.esp);
 
-  hex_dump(if_.esp, if_.esp, PHYS_BASE - (uint32_t)*esp, true);
+  // hex_dump(if_.esp, if_.esp, PHYS_BASE - (uint32_t)*esp, true);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
