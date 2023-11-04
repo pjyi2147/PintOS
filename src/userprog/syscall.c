@@ -106,8 +106,11 @@ syscall_open (const char *file)
 
   struct thread *t = thread_current();
   int fd = t->min_fd;
-  ASSERT(fd < FILE_MAX);
-  ASSERT(t->file_array[fd] == NULL);
+  if (fd >= FILE_MAX || t->file_array[fd] != NULL)
+  {
+    return -1;
+  }
+
   t->file_array[fd] = f;
 
   bool is_min_fd = false;
@@ -124,7 +127,6 @@ syscall_open (const char *file)
   if (!is_min_fd)
   {
     t->min_fd = FILE_MAX;
-    return -1;
   }
   return fd;
 }
