@@ -60,16 +60,16 @@ argument_stack (int argc, char **argv, void **sp)
   int i;
 
   for (i = argc - 1; i >= 0; i --)
-   {
-     int len_arg = strlen(argv[i]) + 1;
-     total_len += len_arg;
-     *sp -= len_arg;
+    {
+      int len_arg = strlen(argv[i]) + 1;
+      total_len += len_arg;
+      *sp -= len_arg;
      
-     memcpy(*sp, argv[i], len_arg);
-     addr[i] = *sp;
-   }
+      memcpy(*sp, argv[i], len_arg);
+      addr[i] = *sp;
+    }
 
-  int word_align_len = 4 - total_len % 4;
+  int word_align_len = 4 - (total_len % 4);
   *sp -= word_align_len;
   memset(*sp, 0, word_align_len);
 
@@ -86,14 +86,12 @@ argument_stack (int argc, char **argv, void **sp)
   *sp -= 4;
   **(uint32_t **)sp = *sp + 4;
   *sp -= 4;
-  **(uint32_t **)sp = argc
+  **(uint32_t **)sp = argc;
 
   /* push ret address */
   *sp -= 4;
   **(uint32_t **)sp = 0;
 }
-
-
 
 /* A thread function that loads a user process and starts it
    running. */
