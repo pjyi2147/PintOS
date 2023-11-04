@@ -21,6 +21,23 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
+struct thread*
+get_child_proc_tid(tid_t child_tid)
+{
+  struct thread *cur = thread_current();
+
+  for (struct list_elem *e = list_begin(&cur->child_list);
+       e != list_end(&cur->child_list); e = list_next(e))
+  {
+    struct thread *t = list_entry(e, struct thread, child_elem);
+    if (t->tid == child_tid)
+    {
+      return t;
+    }
+  }
+  return NULL;
+}
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -29,25 +46,37 @@ tid_t
 process_execute (const char *file_name)
 {
   char *fn_copy;
+  char *fn_copy2;
   tid_t tid;
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
+  fn_copy2 = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
+  if (fn_copy2 == NULL)
+    return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
+  strlcpy (fn_copy2, file_name, PGSIZE);
 
   /* argument passing */
   char *token1;
   char *token2;
 
-  token1 = strtok_r (file_name, " ", &token2);
+  token1 = strtok_r(fn_copy2, " ", &token2);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (token1, PRI_DEFAULT, start_process, fn_copy);
+
+  sema_down(&(get_child_proc_tid(tid)->sema_load));
+
   if (tid == TID_ERROR)
+  {
     palloc_free_page (fn_copy);
+    palloc_free_page (fn_copy2);
+  }
+
   return tid;
 }
 
@@ -131,6 +160,7 @@ start_process (void *file_name_)
   // hex_dump(if_.esp, if_.esp, PHYS_BASE - (uint32_t)*esp, true);
 
   /* If load failed, quit. */
+  sema_up(&(thread_current()->sema_load));
   palloc_free_page (file_name);
   if (!success)
     thread_exit ();
@@ -155,13 +185,21 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED)
+process_wait (tid_t child_tid)
 {
-  for (int i = 0; i < 987654321; i++)
-  {
+  struct thread *child = get_child_proc_tid(child_tid);
 
+  if (child == NULL)
+  {
+    return -1;
   }
-  return -1;
+
+  sema_down(&child->sema_wait);
+  int ret = child->exit_status;
+  list_remove(&child->child_elem);
+  sema_up(&child->sema_free);
+
+  return ret;
 }
 
 /* Free the current process's resources. */
@@ -174,8 +212,10 @@ process_exit (void)
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
+  sema_up(&cur->sema_wait);
   if (pd != NULL)
     {
+      sema_down(&cur->sema_free);
       /* Correct ordering here is crucial.  We must set
          cur->pagedir to NULL before switching page directories,
          so that a timer interrupt can't switch back to the

@@ -108,6 +108,7 @@ struct thread
     struct list child_list;             /* List of child processes */
     struct list_elem child_elem;        /* List element for child processes list */
 
+    struct semaphore sema_load;         /* Semaphore for loading child process */
     struct semaphore sema_wait;         /* Semaphore for waiting for child process to exit */
     struct semaphore sema_free;         /* Semaphore for waiting for child process to free itself */
 

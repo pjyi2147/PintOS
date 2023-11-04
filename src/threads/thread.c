@@ -198,6 +198,15 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+#ifdef USERPROG
+  // Project 2
+  struct thread *cur = thread_current();
+  if (cur != NULL)
+  {
+    list_push_back (&cur->child_list, &t->child_elem);
+  }
+#endif
+
   /* Add to run queue. */
   thread_unblock (t);
 
@@ -471,6 +480,12 @@ init_thread (struct thread *t, const char *name, int priority)
   {
     t->file_array[i] = NULL;
   }
+  t->exit_status = -2;
+  list_init (&t->child_list);
+  sema_init (&t->sema_load, 0);
+  sema_init (&t->sema_wait, 0);
+  sema_init (&t->sema_free, 0);
+  t->exec_file = NULL;
 #endif
 
   old_level = intr_disable ();

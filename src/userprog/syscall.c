@@ -9,20 +9,25 @@
 #include "filesys/file.h"
 #include "lib/kernel/stdio.h"
 
+// project 2
+#include "devices/shutdown.h"
+#include "devices/input.h"
+#include "userprog/process.h"
+
 static void syscall_handler (struct intr_frame *);
 
 struct lock file_lock;
 
 void
-get_argument (void *esp, void **arg, int count)
+get_stack_args (void *esp, void **arg, int count)
 {
   int i;
   for (i = 0; i < count; i++)
   {
-    if (!is_user_vaddr(esp + 4 * i))
+    if (!is_user_vaddr(esp + sizeof(void *) * i))
       syscall_exit(-1);
 
-    arg[i] = *(void **)(esp + 4 * i);
+    arg[i] = *(void **)(esp + sizeof(void *) * i);
   }
 }
 
@@ -53,29 +58,22 @@ syscall_exit (int status)
   struct thread *t = thread_current();
   t->exit_status = status;
   printf("%s: exit(%d)\n", t->name, status);
+  sema_up(&t->sema_load);
+  sema_up(&t->sema_wait);
+
   thread_exit();
 }
 
 tid_t
 syscall_exec (const char *cmd_line)
 {
-  if (!is_user_vaddr (cmd_line))
-  {
-    syscall_exit(-1);
-  }
-  char *fn_copy = palloc_get_page(0);
-  if (fn_copy == NULL)
-  {
-    syscall_exit(-1);
-  }
-  strlcpy(fn_copy, cmd_line, PGSIZE);
-  return process_execute (fn_copy);
+  return process_execute(cmd_line);
 }
 
 int
-syscall_wait (tid_t pid UNUSED)
+syscall_wait (tid_t pid)
 {
-  process_wait(pid);
+  return process_wait (pid);
 }
 
 bool
@@ -142,6 +140,10 @@ syscall_open (const char *file)
 int
 syscall_filesize (int fd)
 {
+  if (fd < 0 || fd >= FILE_MAX)
+  {
+    return -1;
+  }
   struct thread *t = thread_current();
   struct file *f = t->file_array[fd];
   if (f == NULL)
@@ -158,6 +160,10 @@ syscall_read (int fd, void *buffer, unsigned size)
   if (!is_user_vaddr(buffer))
   {
     syscall_exit(-1);
+  }
+  if (fd < 0 || fd >= FILE_MAX)
+  {
+    return -1;
   }
   // STDIN
   if (fd == 0)
@@ -196,6 +202,10 @@ syscall_write (int fd, const void *buffer, unsigned size)
   {
     syscall_exit(-1);
   }
+  if (fd < 0 || fd >= FILE_MAX)
+  {
+    return -1;
+  }
   // STDIN
   if (fd == 0)
   {
@@ -224,6 +234,10 @@ syscall_write (int fd, const void *buffer, unsigned size)
 void
 syscall_seek (int fd, unsigned position)
 {
+  if (fd < 0 || fd >= FILE_MAX)
+  {
+    return;
+  }
   struct thread *t = thread_current();
   struct file *f = t->file_array[fd];
   if (f == NULL)
@@ -236,6 +250,10 @@ syscall_seek (int fd, unsigned position)
 unsigned
 syscall_tell (int fd)
 {
+  if (fd < 0 || fd >= FILE_MAX)
+  {
+    return 0;
+  }
   struct thread *t = thread_current();
   struct file *f = t->file_array[fd];
   if (f == NULL)
@@ -248,6 +266,10 @@ syscall_tell (int fd)
 void
 syscall_close (int fd)
 {
+  if (fd < 0 || fd >= FILE_MAX)
+  {
+    return;
+  }
   struct thread *t = thread_current();
   struct file *f = t->file_array[fd];
   if (f == NULL)
@@ -269,7 +291,7 @@ syscall_handler (struct intr_frame *f)
   if (validate_addr(f->esp) == false)
     syscall_exit(-1);
 
-  // printf("system call! %u\n", f->esp);
+  // printf("system call! %d\n", *(int *)f->esp);
 
   void *arg[3];
 
@@ -279,54 +301,56 @@ syscall_handler (struct intr_frame *f)
       syscall_halt();
       break;
     case SYS_EXIT:
-      get_argument(f->esp + 4, arg, 1);
+      get_stack_args(f->esp + 4, arg, 1);
       syscall_exit((int)arg[0]);
       break;
     case SYS_EXEC:
-      get_argument(f->esp + 4, arg, 1);
-      if (syscall_exec((char *)arg[0]) == -1)
+      get_stack_args(f->esp + 4, arg, 1);
+      int ret = syscall_exec((char *)arg[0]);
+      if (ret == -1)
       {
         syscall_exit(-1);
       }
+      f->eax = ret;
       break;
     case SYS_WAIT:
-      get_argument(f->esp + 4, arg, 1);
-      f->eax = syscall_wait((tid_t)arg[0]);
+      get_stack_args(f->esp + 4, arg, 1);
+      f->eax = syscall_wait((int)arg[0]);
       break;
     case SYS_CREATE:
-      get_argument(f->esp + 4, arg, 2);
+      get_stack_args(f->esp + 4, arg, 2);
       f->eax = syscall_create((char *)arg[0], (unsigned)arg[1]);
       break;
     case SYS_REMOVE:
-      get_argument(f->esp + 4, arg, 1);
+      get_stack_args(f->esp + 4, arg, 1);
       f->eax = syscall_remove((char *)arg[0]);
       break;
     case SYS_OPEN:
-      get_argument(f->esp + 4, arg, 1);
+      get_stack_args(f->esp + 4, arg, 1);
       f->eax = syscall_open((char *)arg[0]);
       break;
     case SYS_FILESIZE:
-      get_argument(f->esp + 4, arg, 1);
+      get_stack_args(f->esp + 4, arg, 1);
       f->eax = syscall_filesize((int)arg[0]);
       break;
     case SYS_READ:
-      get_argument(f->esp + 4, arg, 3);
+      get_stack_args(f->esp + 4, arg, 3);
       f->eax = syscall_read((int)arg[0], (void *)arg[1], (unsigned)arg[2]);
       break;
     case SYS_WRITE:
-      get_argument(f->esp + 4, arg, 3);
+      get_stack_args(f->esp + 4, arg, 3);
       f->eax = syscall_write((int)arg[0], (void *)arg[1], (unsigned)arg[2]);
       break;
     case SYS_SEEK:
-      get_argument(f->esp + 4, arg, 2);
+      get_stack_args(f->esp + 4, arg, 2);
       syscall_seek((int)arg[0], (unsigned)arg[1]);
       break;
     case SYS_TELL:
-      get_argument(f->esp + 4, arg, 1);
+      get_stack_args(f->esp + 4, arg, 1);
       f->eax = syscall_tell((int)arg[0]);
       break;
     case SYS_CLOSE:
-      get_argument(f->esp + 4, arg, 1);
+      get_stack_args(f->esp + 4, arg, 1);
       syscall_close((int)arg[0]);
       break;
     default:
