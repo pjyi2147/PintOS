@@ -102,6 +102,7 @@ struct thread
 
     // Project 2
     int exit_status;                    /* Exit status of the thread */
+    bool is_loaded;                     /* Whether the thread is loaded */
     struct file *file_array[FILE_MAX];
     uint8_t min_fd;
 

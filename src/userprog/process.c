@@ -18,6 +18,8 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
+#include "userprog/syscall.h"
+
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
@@ -70,13 +72,16 @@ process_execute (const char *file_name)
   tid = thread_create (token1, PRI_DEFAULT, start_process, fn_copy);
 
   sema_down(&(get_child_proc_tid(tid)->sema_load));
-
   if (tid == TID_ERROR)
   {
     palloc_free_page (fn_copy);
     palloc_free_page (fn_copy2);
   }
 
+  if (!get_child_proc_tid(tid)->is_loaded)
+  {
+    return -2;
+  }
   return tid;
 }
 
@@ -152,6 +157,7 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
+  thread_current()->is_loaded = success;
 
   /* argument passing */
   void **esp = &if_.esp;
@@ -160,8 +166,8 @@ start_process (void *file_name_)
   // hex_dump(if_.esp, if_.esp, PHYS_BASE - (uint32_t)*esp, true);
 
   /* If load failed, quit. */
-  sema_up(&(thread_current()->sema_load));
   palloc_free_page (file_name);
+  sema_up(&(thread_current()->sema_load));
   if (!success)
     thread_exit ();
 
@@ -430,7 +436,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
-  // file_close (file);
   return success;
 }
 
