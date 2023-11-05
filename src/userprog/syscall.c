@@ -79,7 +79,7 @@ syscall_wait (tid_t pid)
 bool
 syscall_create (const char *file, unsigned initial_size)
 {
-  if (!is_user_vaddr(file))
+  if (!is_user_vaddr(file) || file == NULL)
   {
     syscall_exit(-1);
   }
@@ -89,7 +89,7 @@ syscall_create (const char *file, unsigned initial_size)
 bool
 syscall_remove (const char *file)
 {
-  if (!is_user_vaddr(file))
+  if (!is_user_vaddr(file) || file == NULL)
   {
     syscall_exit(-1);
   }
@@ -99,7 +99,7 @@ syscall_remove (const char *file)
 int
 syscall_open (const char *file)
 {
-  if (!is_user_vaddr(file))
+  if (!is_user_vaddr(file) || file == NULL)
   {
     syscall_exit(-1);
   }
@@ -307,9 +307,13 @@ syscall_handler (struct intr_frame *f)
     case SYS_EXEC:
       get_stack_args(f->esp + 4, arg, 1);
       int ret = syscall_exec((char *)arg[0]);
-      if (ret == -1)
+      if (ret == TID_ERROR)
       {
         syscall_exit(-1);
+      }
+      if (ret == -2)
+      {
+        ret = -1;
       }
       f->eax = ret;
       break;
