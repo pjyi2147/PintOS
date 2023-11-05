@@ -211,6 +211,9 @@ process_exit (void)
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
+  file_close(cur->exec_file);
+  cur->exec_file = NULL;
+
   pd = cur->pagedir;
   sema_up(&cur->sema_wait);
   if (pd != NULL)
@@ -421,11 +424,13 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 
+  file_deny_write(file);
+  t->exec_file = file;
   success = true;
 
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+  // file_close (file);
   return success;
 }
 
