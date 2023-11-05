@@ -75,13 +75,13 @@ process_execute (const char *file_name)
   if (tid == TID_ERROR)
   {
     palloc_free_page (fn_copy);
-    palloc_free_page (fn_copy2);
   }
 
   if (!get_child_proc_tid(tid)->is_loaded)
   {
     return -2;
   }
+  palloc_free_page (fn_copy2);
   return tid;
 }
 
@@ -214,6 +214,14 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+
+  for (int i = 2; i < FILE_MAX; i++)
+  {
+    if (cur->file_array[i] != NULL)
+    {
+      file_close(cur->file_array[i]);
+    }
+  }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
