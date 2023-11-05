@@ -480,7 +480,7 @@ init_thread (struct thread *t, const char *name, int priority)
   {
     t->file_array[i] = NULL;
   }
-  t->exit_status = -2;
+  t->exit_status = -1;
   list_init (&t->child_list);
   sema_init (&t->sema_load, 0);
   sema_init (&t->sema_wait, 0);
