@@ -1,10 +1,13 @@
 #include "vm/page.h"
+#include <hash.h>
+#include <string.h>
+#include "threads/malloc.h"
 #include "threads/thread.h"
-#include "vm/frame.h"
 #include "threads/vaddr.h"
 #include "userprog/syscall.h"
 #include "userprog/pagedir.h"
-#include <hash.h>
+#include "vm/frame.h"
+
 
 static hash_hash_func page_hash_func;
 static hash_less_func page_less_func;

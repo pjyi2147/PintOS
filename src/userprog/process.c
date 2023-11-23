@@ -114,12 +114,12 @@ argument_stack (int argc, char **argv, void **sp)
   for(i = argc - 1; i >= 0; i --) // pushes argv address
   {
     *sp -= 4;
-    **(uint32_t **)sp = addr[i];
+    **(uint32_t **)sp = (uint32_t) addr[i];
   }
 
   /* push argv, c */
   *sp -= 4;
-  **(uint32_t **)sp = *sp + 4;
+  **(uint32_t **)sp = (uint32_t) (*sp + 4);
   *sp -= 4;
   **(uint32_t **)sp = argc;
 
@@ -161,10 +161,7 @@ start_process (void *file_name_)
   thread_current()->is_loaded = success;
 
   /* argument passing */
-  void **esp = &if_.esp;
   argument_stack(argc, argv, &if_.esp);
-
-  // hex_dump(if_.esp, if_.esp, PHYS_BASE - (uint32_t)*esp, true);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);

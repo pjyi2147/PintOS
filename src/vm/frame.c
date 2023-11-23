@@ -1,12 +1,16 @@
 #include "vm/frame.h"
 #include "threads/malloc.h"
 #include "threads/synch.h"
+#include "userprog/pagedir.h"
+#include "userprog/syscall.h"
 #include "vm/page.h"
 #include "vm/swap.h"
 
 static struct list frame_table;
 static struct lock frame_lock;
 static struct frame *last_frame;
+
+void frame_evict(void);
 
 void
 frame_init(void)
@@ -22,7 +26,7 @@ frame_alloc(enum palloc_flags flags, void *upage)
   void *kpage = palloc_get_page(flags);
   if (kpage == NULL)
   {
-    frame_evict(flags, upage);
+    frame_evict();
     kpage = palloc_get_page(flags);
     if (kpage == NULL)
     {
@@ -57,6 +61,7 @@ frame_free(void *frame)
       return;
     }
   }
+  // if there is no frame to free then it is an error
   syscall_exit(-1);
 }
 
@@ -77,7 +82,7 @@ frame_get (void *kpage)
 }
 
 void
-frame_evict(enum palloc_flags flags, void *upage)
+frame_evict(void)
 {
   ASSERT(lock_held_by_current_thread(&frame_lock));
 
