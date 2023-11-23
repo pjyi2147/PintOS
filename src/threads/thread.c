@@ -207,6 +207,11 @@ thread_create (const char *name, int priority,
   }
 #endif
 
+#ifdef VM
+  // project 3
+  page_table_init (&t->page_table);
+#endif
+
   /* Add to run queue. */
   thread_unblock (t);
 

@@ -7,6 +7,10 @@
 
 #include "threads/synch.h"
 
+#ifdef VM
+#include "vm/page.h"
+#endif
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -114,6 +118,11 @@ struct thread
     struct semaphore sema_free;         /* Semaphore for waiting for child process to free itself */
 
     struct file *exec_file;            /* Executable file of the process */
+#endif
+
+#ifdef VM
+    // project 3
+    struct hash page_table;             /* Page table */
 #endif
 
     /* Owned by thread.c. */

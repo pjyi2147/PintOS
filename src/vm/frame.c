@@ -107,7 +107,7 @@ frame_evict(void)
   } while (!pagedir_is_accessed(fe->thread->pagedir, fe->upage));
 
   // TODO: swap out the frame
-  pe = page_get (fe->thread->page_table, fe->upage);
+  pe = page_get (&fe->thread->page_table, fe->upage);
   pe->status = PAGE_STATUS_SWAP;
   pe->swap_index = swap_out(fe->kpage);
 
