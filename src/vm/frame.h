@@ -1,11 +1,9 @@
-#ifndef _VM_FRAME_H_
-#define _VM_FRAME_H_
+#ifndef VM_FRAME_H
+#define VM_FRAME_H
 
-#include <debug.h>
 #include <list.h>
-#include <stdint.h>
-
-#include "threads/synch.h"
+#include "threads/thread.h"
+#include "threads/palloc.h"
 
 struct frame
 {
@@ -17,7 +15,7 @@ struct frame
 
 void frame_init (void);
 void *frame_alloc (enum palloc_flags flags, void *upage);
-void frame_free (void *kpage);
-void frame_free_all (struct thread *t);
+void frame_free(void *kpage);
+struct frame* frame_get (void *kpage);
 
-#endif /* _VM_FRAME_H_ */
+#endif /* VM_FRAME_H */
