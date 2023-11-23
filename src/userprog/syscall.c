@@ -33,7 +33,7 @@ get_stack_args (void *esp, void **arg, int count)
 
 bool validate_addr (void *addr)
 {
-  if (addr >= STACK_BOTTOM && addr < PHYS_BASE && addr != 0)
+  if (addr >= (void *) STACK_BOTTOM && addr < PHYS_BASE && addr != 0)
     return true;
 
   return false;
@@ -168,7 +168,7 @@ syscall_read (int fd, void *buffer, unsigned size)
   // STDIN
   if (fd == 0)
   {
-    for (int i = 0; i < size; i++)
+    for (unsigned i = 0; i < size; i++)
     {
       ((char *)buffer)[i] = input_getc();
     }
