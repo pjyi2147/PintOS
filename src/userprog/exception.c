@@ -4,7 +4,9 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
 #include "userprog/syscall.h"
+#include "vm/page.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -149,15 +151,43 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
+  void *upage = pg_round_down(fault_addr);
+
+  if (is_kernel_vaddr(fault_addr) || !not_present)
+  {
+    // printf("page fault on kernel address\n");
+    syscall_exit(-1);
+  }
+
+  struct hash *page_table = &thread_current()->page_table;
+  struct page *p = page_get(page_table, upage);
+
+  // stack growth
+  void *esp = f->esp;
+  if (esp - 32 <= fault_addr && PHYS_BASE - MAX_STACK_SIZE <= fault_addr)
+  {
+    // printf("page fault: stack growth\n");
+    if (p == NULL)
+    {
+      page_zero_init(page_table, upage);
+    }
+  }
+
+  if (page_load(page_table, upage))
+  {
+    // printf("page fault: page load success\n");
+    return;
+  }
+
   syscall_exit(-1);
 
-  /* To implement virtual memory, delete the rest of the function
-     body, and replace it with code that brings in the page to
-     which fault_addr refers. */
+    /* To implement virtual memory, delete the rest of the function
+       body, and replace it with code that brings in the page to
+       which fault_addr refers. */
   printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
+           fault_addr,
+           not_present ? "not present" : "rights violation",
+           write ? "writing" : "reading",
+           user ? "user" : "kernel");
   kill (f);
 }
