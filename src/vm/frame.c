@@ -12,6 +12,7 @@ static struct frame *last_frame;
 
 void frame_evict(void);
 
+// Frame table Initialization
 void
 frame_init(void)
 {
@@ -19,6 +20,7 @@ frame_init(void)
   list_init(&frame_table);
 }
 
+// Allocate frame
 void *
 frame_alloc(enum palloc_flags flags, void *upage)
 {
@@ -26,12 +28,15 @@ frame_alloc(enum palloc_flags flags, void *upage)
   void *kpage = palloc_get_page(flags);
   if (kpage == NULL)
   {
-    frame_evict();
-    kpage = palloc_get_page(flags);
-    if (kpage == NULL)
-    {
-      return NULL;
-    }
+    // frame_evict();
+    // kpage = palloc_get_page(flags);
+    // if (kpage == NULL)
+    // {
+    //   return NULL;
+    // }
+    printf("frame_alloc: out of memory\n");
+    lock_release(&frame_lock);
+    syscall_exit(-1);
   }
   struct frame *f = malloc(sizeof(struct frame));
   f->kpage = kpage;
@@ -42,6 +47,7 @@ frame_alloc(enum palloc_flags flags, void *upage)
   return kpage;
 }
 
+// Free frame
 void
 frame_free(void *frame)
 {
@@ -61,10 +67,12 @@ frame_free(void *frame)
       return;
     }
   }
+  lock_release(&frame_lock);
   // if there is no frame to free then it is an error
   syscall_exit(-1);
 }
 
+// Get frame
 struct frame *
 frame_get (void *kpage)
 {
@@ -81,6 +89,7 @@ frame_get (void *kpage)
   return NULL;
 }
 
+// Evict frame
 void
 frame_evict(void)
 {

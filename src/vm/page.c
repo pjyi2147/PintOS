@@ -1,5 +1,6 @@
 #include "vm/page.h"
 #include <hash.h>
+#include <stdio.h>
 #include <string.h>
 #include "threads/malloc.h"
 #include "threads/thread.h"
@@ -8,36 +9,26 @@
 #include "userprog/pagedir.h"
 #include "vm/frame.h"
 
-
 static hash_hash_func page_hash_func;
 static hash_less_func page_less_func;
 static void page_destructor (struct hash_elem *e, void *aux);
 extern struct lock file_lock;
 
+// Page table initialization
 void
 page_table_init (struct hash *page_table)
 {
   hash_init (page_table, page_hash_func, page_less_func, NULL);
 }
 
+//' Page table destruction
 void
 page_table_destroy (struct hash *page_table)
 {
   hash_destroy (page_table, page_destructor);
 }
 
-void
-page_init (struct hash *page_table, void *upage, void *kpage)
-{
-  struct page *p = malloc (sizeof (struct page));
-  p->kpage = kpage;
-  p->upage = upage;
-
-  p->status = PAGE_STATUS_FRAME;
-
-  hash_insert (page_table, &p->elem);
-}
-
+// Zero page initialization
 void
 page_zero_init (struct hash *page_table, void *upage)
 {
@@ -46,6 +37,7 @@ page_zero_init (struct hash *page_table, void *upage)
   p->upage = upage;
 
   p->status = PAGE_STATUS_ZERO;
+  p->origin = PAGE_STATUS_ZERO;
 
   p->file = NULL;
   p->writable = true;
@@ -53,6 +45,7 @@ page_zero_init (struct hash *page_table, void *upage)
   hash_insert (page_table, &p->elem);
 }
 
+// Frame page initialization
 void
 page_frame_init (struct hash *page_table, void *upage, void *kpage)
 {
@@ -61,6 +54,7 @@ page_frame_init (struct hash *page_table, void *upage, void *kpage)
   p->upage = upage;
 
   p->status = PAGE_STATUS_FRAME;
+  p->origin = PAGE_STATUS_FRAME;
 
   p->file = NULL;
   p->writable = true;
@@ -68,6 +62,7 @@ page_frame_init (struct hash *page_table, void *upage, void *kpage)
   hash_insert (page_table, &p->elem);
 }
 
+// File page initialization
 struct page*
 page_file_init (struct hash *page_table, void *upage,
                 struct file *file, off_t ofs, uint32_t read_bytes,
@@ -78,6 +73,7 @@ page_file_init (struct hash *page_table, void *upage,
   p->upage = upage;
 
   p->status = PAGE_STATUS_FILE;
+  p->origin = PAGE_STATUS_FILE;
 
   p->file = file;
   p->ofs = ofs;
@@ -114,18 +110,15 @@ page_load (struct hash *page_table, void *upage)
       // TODO: implement swap
       break;
     case PAGE_STATUS_FILE:
-      if (!lock_held_by_current_thread(&file_lock))
-      {
-        lock_acquire(&file_lock);
-      }
-      if (file_read_at (p->file, kpage, p->read_bytes, p->ofs) != p->read_bytes)
+      uint32_t file_read_bytes = file_read_at(p->file, kpage, p->read_bytes, p->ofs);
+      if (file_read_bytes != p->read_bytes)
       {
         frame_free (p->kpage);
-        lock_release(&file_lock);
         return false;
       }
-      memset (p->kpage + p->read_bytes, 0, p->zero_bytes);
+      memset (kpage + file_read_bytes, 0, p->zero_bytes);
       break;
+    // case PAGE_STATUS_FRAME: it is already loaded to frame! error!
     default:
       return false;
   }
@@ -179,5 +172,20 @@ static void
 page_destructor (struct hash_elem *e, void *aux UNUSED)
 {
   struct page *p = hash_entry (e, struct page, elem);
+
+  if (p->status == PAGE_STATUS_FRAME)
+  {
+    if (p->origin == PAGE_STATUS_FILE && pagedir_is_dirty (thread_current ()->pagedir, p->upage))
+    {
+      if (!lock_held_by_current_thread(&file_lock))
+      {
+        lock_acquire(&file_lock);
+      }
+      file_write_at (p->file, p->kpage, p->read_bytes, p->ofs);
+      lock_release(&file_lock);
+    }
+    frame_free (p->kpage);
+  }
+
   free (p);
 }

@@ -152,6 +152,7 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   void *upage = pg_round_down(fault_addr);
+  // printf("page fault: %p\n", fault_addr);
 
   if (is_kernel_vaddr(fault_addr) || !not_present)
   {
