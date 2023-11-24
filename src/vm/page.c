@@ -8,6 +8,7 @@
 #include "userprog/syscall.h"
 #include "userprog/pagedir.h"
 #include "vm/frame.h"
+#include "vm/swap.h"
 
 static hash_hash_func page_hash_func;
 static hash_less_func page_less_func;
@@ -107,9 +108,12 @@ page_load (struct hash *page_table, void *upage)
       memset (kpage, 0, PGSIZE);
       break;
     case PAGE_STATUS_SWAP:
-      // TODO: implement swap
+      // printf("page_load: swap in %p\n", upage);
+      swap_in (p, kpage);
+      // hex_dump (upage, kpage, 32, true);
       break;
     case PAGE_STATUS_FILE:
+      //printf("page_load: file read %p\n", upage);
       uint32_t file_read_bytes = file_read_at(p->file, kpage, p->read_bytes, p->ofs);
       if (file_read_bytes != p->read_bytes)
       {
@@ -123,8 +127,10 @@ page_load (struct hash *page_table, void *upage)
       return false;
   }
 
-  if (!pagedir_set_page (thread_current ()->pagedir, upage, kpage, p->writable))
+  if (pagedir_get_page (thread_current ()->pagedir, upage) == NULL
+      && !pagedir_set_page (thread_current ()->pagedir, upage, kpage, p->writable))
   {
+    // printf("page_load: pagedir_set_page failed\n");
     frame_free (p->kpage);
     return false;
   }

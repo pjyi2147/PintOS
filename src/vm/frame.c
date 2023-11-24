@@ -1,4 +1,5 @@
 #include "vm/frame.h"
+#include <stdio.h>
 #include "threads/malloc.h"
 #include "threads/synch.h"
 #include "userprog/pagedir.h"
@@ -9,6 +10,7 @@
 static struct list frame_table;
 static struct lock frame_lock;
 static struct frame *last_frame;
+extern struct lock file_lock;
 
 void frame_evict(void);
 
@@ -18,6 +20,7 @@ frame_init(void)
 {
   lock_init(&frame_lock);
   list_init(&frame_table);
+  last_frame = NULL;
 }
 
 // Allocate frame
@@ -28,15 +31,14 @@ frame_alloc(enum palloc_flags flags, void *upage)
   void *kpage = palloc_get_page(flags);
   if (kpage == NULL)
   {
-    // frame_evict();
-    // kpage = palloc_get_page(flags);
-    // if (kpage == NULL)
-    // {
-    //   return NULL;
-    // }
-    printf("frame_alloc: out of memory\n");
-    lock_release(&frame_lock);
-    syscall_exit(-1);
+    // printf("frame_alloc: eviction\n");
+    frame_evict();
+    kpage = palloc_get_page(flags);
+    if (kpage == NULL)
+    {
+      // printf("frame_alloc: eviction failed\n");
+      return NULL;
+    }
   }
   struct frame *f = malloc(sizeof(struct frame));
   f->kpage = kpage;
@@ -47,9 +49,9 @@ frame_alloc(enum palloc_flags flags, void *upage)
   return kpage;
 }
 
-// Free frame
+// Free frame with kpage
 void
-frame_free(void *frame)
+frame_free(void *kpage)
 {
   struct list_elem *e;
   struct frame *fe;
@@ -57,10 +59,10 @@ frame_free(void *frame)
   for (e = list_begin(&frame_table); e != list_end(&frame_table); e = list_next(e))
   {
     fe = list_entry(e, struct frame, elem);
-    if (fe->kpage == frame)
+    if (fe->kpage == kpage)
     {
       list_remove(e);
-      palloc_free_page(frame);
+      palloc_free_page(kpage);
       pagedir_clear_page(fe->thread->pagedir, fe->upage);
       free(fe);
       lock_release(&frame_lock);
@@ -98,28 +100,61 @@ frame_evict(void)
   struct frame *fe = last_frame;
   struct page *pe;
 
-  do
+  if (fe == NULL)
   {
-    if (fe != NULL)
-    {
-      pagedir_set_accessed(fe->thread->pagedir, fe->upage, false);
-    }
+    fe = list_entry(list_front(&frame_table), struct frame, elem);
+  }
 
-    if (last_frame == NULL || list_next(&fe->elem) == list_end(&frame_table))
+  while (pagedir_is_accessed(fe->thread->pagedir, fe->upage))
+  {
+    pagedir_set_accessed(fe->thread->pagedir, fe->upage, false);
+    if (list_next(&fe->elem) == list_end(&frame_table))
     {
-      fe = list_entry(list_begin(&frame_table), struct frame, elem);
+      fe = list_entry(list_front(&frame_table), struct frame, elem);
     }
     else
     {
       fe = list_entry(list_next(&fe->elem), struct frame, elem);
     }
-  } while (!pagedir_is_accessed(fe->thread->pagedir, fe->upage));
+  }
 
-  // TODO: swap out the frame
+  if (list_next(&fe->elem) == list_end(&frame_table))
+  {
+    last_frame = list_entry(list_front(&frame_table), struct frame, elem);
+  }
+  else
+  {
+    last_frame = list_entry(list_next(&fe->elem), struct frame, elem);
+  }
+
+  // printf("frame_evict: page_get %p\n", fe->upage);
   pe = page_get (&fe->thread->page_table, fe->upage);
-  pe->status = PAGE_STATUS_SWAP;
-  pe->swap_index = swap_out(fe->kpage);
+  if (pe == NULL)
+  {
+    // printf("frame_evict: page_get failed\n");
+    lock_release(&frame_lock);
+    syscall_exit(-1);
+  }
 
-  frame_free(fe->kpage);
+  if (pe->origin == PAGE_STATUS_FILE &&
+      pagedir_is_dirty(fe->thread->pagedir, fe->upage))
+  {
+    // printf("frame_evict: file write; dirty\n");
+    if (!lock_held_by_current_thread(&file_lock))
+    {
+      lock_acquire(&file_lock);
+    }
+    file_write_at(pe->file, fe->kpage, pe->read_bytes, pe->ofs);
+    lock_release(&file_lock);
+  }
+
+  // printf("frame_evict: swap_out\n");
+  pe->swap_index = swap_out(fe->kpage);
+  pe->status = PAGE_STATUS_SWAP;
+
+  pagedir_clear_page(fe->thread->pagedir, fe->upage);
+
   lock_release(&frame_lock);
+  frame_free(fe->kpage);
+  lock_acquire(&frame_lock);
 }
