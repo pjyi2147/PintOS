@@ -21,6 +21,7 @@ struct page
   struct hash_elem elem;
 
   enum page_status status;
+  enum page_status origin;
 
   struct file *file;
   off_t ofs;
