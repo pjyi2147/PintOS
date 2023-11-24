@@ -554,7 +554,10 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
+      {
         *esp = PHYS_BASE;
+        page_frame_init(&thread_current()->page_table, PHYS_BASE - PGSIZE, kpage);
+      }
       else
         frame_free (kpage);
     }

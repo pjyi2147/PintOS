@@ -14,6 +14,9 @@
 #include "devices/input.h"
 #include "userprog/process.h"
 
+// project 3
+#include <string.h>
+
 static void syscall_handler (struct intr_frame *);
 
 struct lock file_lock;
@@ -187,8 +190,9 @@ syscall_read (int fd, void *buffer, unsigned size)
   {
     return -1;
   }
-
   lock_acquire(&file_lock);
+  // pin memory to avoid page fault while holding lock
+  memset(buffer, 0, size);
   int ret = file_read(f, buffer, size);
   lock_release(&file_lock);
   return ret;
@@ -224,7 +228,6 @@ syscall_write (int fd, const void *buffer, unsigned size)
   {
     return -1;
   }
-
   lock_acquire(&file_lock);
   int ret = file_write(f, buffer, size);
   lock_release(&file_lock);

@@ -51,7 +51,7 @@ int swap_out(void *kva)
   int swap_index;
 
   lock_acquire(&swap_lock);
-  swap_index = bitmap_scan_and_flip (swap_table, 0, 1, true);
+  swap_index = bitmap_scan_and_flip (swap_table, 0, 1, false);
   lock_release(&swap_lock);
 
   for (i = 0; i < SECTORS_PER_PAGE; i++)
