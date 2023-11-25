@@ -14,9 +14,8 @@
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
-#ifdef VM
 #include "vm/page.h"
-#endif
+#include "threads/malloc.h"
 
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
@@ -209,11 +208,8 @@ thread_create (const char *name, int priority,
     list_push_back (&cur->child_list, &t->child_elem);
   }
 #endif
-
-#ifdef VM
   // project 3
   page_table_init (&t->page_table);
-#endif
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -481,7 +477,6 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
-#ifdef USERPROG
   // Project 2
   t->min_fd = 2;
   for (int i = 0; i < FILE_MAX; i++)
@@ -495,7 +490,9 @@ init_thread (struct thread *t, const char *name, int priority)
   sema_init (&t->sema_wait, 0);
   sema_init (&t->sema_free, 0);
   t->exec_file = NULL;
-#endif
+
+  list_init(&t->mmf_list);
+  t->mmf_id = 0;
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -615,3 +612,53 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+struct mmf *
+mmf_init (int id, struct file* file, void* upage)
+{
+  struct mmf *mmf = (struct mmf *)malloc(sizeof mmf);
+
+  mmf->id = id;
+  mmf->file = file;
+  mmf->upage = upage;
+
+  off_t ofs;
+  int size = file_length(file);
+
+  struct hash *page_tbl = &thread_current()->page_table;
+
+  for (ofs = 0; ofs < size; ofs += PGSIZE)
+  {
+    if (page_get (page_tbl, upage + ofs))
+    {
+      return NULL;
+    }
+  }
+
+  for (ofs = 0; ofs < size; ofs += PGSIZE)
+  {
+    uint32_t read_bytes = ofs + PGSIZE < size ? PGSIZE : size - ofs;
+    page_file_init(page_tbl, upage, file, ofs, read_bytes, PGSIZE - read_bytes, true);
+    upage += PGSIZE;
+  }
+
+  list_push_back(&thread_current()->mmf_list, &mmf->elem);
+  return mmf;
+}
+
+struct mmf *
+mmf_get (int mmf_id)
+{
+  struct list *list = &thread_current()->mmf_list;
+
+  for (struct list_elem *e = list_begin(list); e != list_end(list); e = list_next(e))
+  {
+    struct mmf *f = list_entry(e, struct mmf, elem);
+
+    if (f->id == mmf_id)
+    {
+      return f;
+    }
+  }
+  return NULL;
+}
