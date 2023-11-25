@@ -491,6 +491,7 @@ init_thread (struct thread *t, const char *name, int priority)
   sema_init (&t->sema_free, 0);
   t->exec_file = NULL;
 
+  list_init(&t->lock_list);
   list_init(&t->mmf_list);
   t->mmf_id = 0;
 

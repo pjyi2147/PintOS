@@ -132,6 +132,8 @@ struct thread
     struct list mmf_list;
     int mmf_id;
 
+    struct list lock_list;
+
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };

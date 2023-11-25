@@ -227,6 +227,14 @@ process_exit (void)
     syscall_munmap(i);
   }
 
+  struct list_elem *e;
+  while (!list_empty(&cur->lock_list))
+  {
+    e = list_pop_front(&cur->lock_list);
+    struct lock *l = list_entry(e, struct lock, elem);
+    lock_release(l);
+  }
+
   page_table_destroy(&cur->page_table);
 
   /* Destroy the current process's page directory and switch back
