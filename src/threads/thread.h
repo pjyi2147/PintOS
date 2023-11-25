@@ -7,9 +7,8 @@
 
 #include "threads/synch.h"
 
-#ifdef VM
+#include "filesys/file.h"
 #include "vm/page.h"
-#endif
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -30,6 +29,15 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 #define FILE_MAX 128                    /* Maximum number of files a process can open */
+
+struct mmf
+{
+   int id;
+   struct file *file;
+   struct list_elem elem;
+
+   void *upage;
+};
 
 /* A kernel thread or user process.
 
@@ -100,7 +108,6 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
-#ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
 
@@ -118,12 +125,12 @@ struct thread
     struct semaphore sema_free;         /* Semaphore for waiting for child process to free itself */
 
     struct file *exec_file;            /* Executable file of the process */
-#endif
 
-#ifdef VM
     // project 3
     struct hash page_table;             /* Page table */
-#endif
+
+    struct list mmf_list;
+    int mmf_id;
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
@@ -164,5 +171,8 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+struct mmf *mmf_init(int id, struct file *file, void *upage);
+struct mmf *mmf_get(int id);
 
 #endif /* threads/thread.h */

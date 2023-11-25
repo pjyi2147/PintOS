@@ -22,6 +22,9 @@ void syscall_seek (int fd, unsigned position);
 unsigned syscall_tell (int fd);
 void syscall_close (int fd);
 
+int syscall_mmap(int fd, void *addr);
+void syscall_munmap(int mmf_id);
+
 void syscall_init (void);
 
 #endif /* userprog/syscall.h */

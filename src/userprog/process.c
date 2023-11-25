@@ -222,6 +222,11 @@ process_exit (void)
     }
   }
 
+  for (int i = 0; i < cur->mmf_id; i++)
+  {
+    syscall_munmap(i);
+  }
+
   page_table_destroy(&cur->page_table);
 
   /* Destroy the current process's page directory and switch back
