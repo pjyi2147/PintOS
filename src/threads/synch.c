@@ -199,9 +199,7 @@ lock_acquire (struct lock *lock)
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
 
-  printf("lock_acquire\n");
   list_push_back(&lock->holder->lock_list, &lock->elem);
-  printf("lock_acquire end\n");
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -222,9 +220,7 @@ lock_try_acquire (struct lock *lock)
   if (success)
   {
     lock->holder = thread_current ();
-    printf("lock_try_acquire\n");
     list_push_back(&lock->holder->lock_list, &lock->elem);
-    printf("lock_try_acquire end\n");
   }
   return success;
 }

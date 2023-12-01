@@ -45,9 +45,7 @@ void *frame_alloc (enum palloc_flags flags, void *upage)
     frame->thread = thread_current ();
 
     lock_acquire (&frame_lock);
-    printf("frame_alloc push_back\n");
     list_push_back (&frame_table, &frame->elem);
-    printf("frame_alloc push_back end\n");
     lock_release (&frame_lock);
 
     return kpage;
