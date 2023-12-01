@@ -168,7 +168,7 @@ syscall_read (int fd, void *buffer, unsigned size)
   // STDIN
   if (fd == 0)
   {
-    for (int i = 0; i < size; i++)
+    for (unsigned i = 0; i < size; i++)
     {
       ((char *)buffer)[i] = input_getc();
     }

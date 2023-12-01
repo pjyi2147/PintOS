@@ -22,6 +22,7 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+struct thread* get_child_proc_tid(tid_t child_tid);
 
 struct thread*
 get_child_proc_tid(tid_t child_tid)
@@ -113,12 +114,12 @@ argument_stack (int argc, char **argv, void **sp)
   for(i = argc - 1; i >= 0; i --) // pushes argv address
   {
     *sp -= 4;
-    **(uint32_t **)sp = addr[i];
+    **(uint32_t **)sp = (uint32_t)addr[i];
   }
 
   /* push argv, c */
   *sp -= 4;
-  **(uint32_t **)sp = *sp + 4;
+  **(uint32_t **)sp = (uint32_t)(*sp + 4);
   *sp -= 4;
   **(uint32_t **)sp = argc;
 
@@ -160,7 +161,6 @@ start_process (void *file_name_)
   thread_current()->is_loaded = success;
 
   /* argument passing */
-  void **esp = &if_.esp;
   argument_stack(argc, argv, &if_.esp);
 
   // hex_dump(if_.esp, if_.esp, PHYS_BASE - (uint32_t)*esp, true);

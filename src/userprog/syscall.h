@@ -1,7 +1,7 @@
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
 
-#define STACK_BOTTOM 0x8048000
+#define STACK_BOTTOM ((void *)0x8048000)
 
 #include <stdbool.h>
 #include "threads/thread.h"
