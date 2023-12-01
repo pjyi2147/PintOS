@@ -24,7 +24,7 @@ struct page
     enum PAGE_STATUS status;   /* Status of the page. */
     enum PAGE_STATUS origin;   /* Original status of the page. */
 
-    int swap_index;            /* Swap index of the page. */
+    unsigned swap_index;            /* Swap index of the page. */
 
     struct file *file;         /* File that owns this page. */
     off_t ofs;                 /* Offset of the page in the file. */
@@ -41,9 +41,9 @@ void page_alloc_zero (void *upage);
 void page_alloc_file (void *upage, struct file *file, off_t ofs,
                       uint32_t read_bytes, uint32_t zero_bytes, bool writable);
 
-void page_free (void *upage);
+// void page_free (struct hash *page_table, void *upage);
 
-struct page *page_lookup (void *upage);
+struct page *page_lookup (struct hash *page_table, void *upage);
 
 bool page_load (void *fault_page);
 

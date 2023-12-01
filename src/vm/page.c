@@ -103,54 +103,53 @@ page_alloc_file (void *upage, struct file *file, off_t ofs,
     // printf("page_alloc_file end, writable: %d\n", p->writable);
 }
 
-void
-page_free (void *upage)
-{
-    struct page *p;
-    p = page_lookup (upage);
+// void
+// page_free (struct hash *page_table, void *upage)
+// {
+//     struct page *p;
+//     p = page_lookup (page_table, upage);
 
-    if (p == NULL)
-    {
-        // double free???
-        syscall_exit (-141);
-    }
+//     if (p == NULL)
+//     {
+//         // double free???
+//         syscall_exit (-1);
+//     }
 
-    switch (p->status)
-    {
-        case PAGE_STATUS_FRAME:
-            frame_free (p->kpage);
-            break;
-        case PAGE_STATUS_SWAP:
-            // TODO: implement swap
-            // swap_free (p->swap_index);
-            break;
-        case PAGE_STATUS_ZERO:
-        case PAGE_STATUS_FILE:
-            // do nothing
-            break;
-        default:
-            // do nothing
-            break;
-    }
+//     switch (p->status)
+//     {
+//         case PAGE_STATUS_FRAME:
+//             frame_free (p->kpage);
+//             break;
+//         case PAGE_STATUS_SWAP:
+//             swap_free (p->swap_index);
+//             break;
+//         case PAGE_STATUS_ZERO:
+//         case PAGE_STATUS_FILE:
+//             // do nothing
+//             break;
+//         default:
+//             // do nothing
+//             break;
+//     }
 
-    hash_delete (&thread_current ()->page_table, &p->elem);
-    free (p);
-}
+//     hash_delete (&thread_current ()->page_table, &p->elem);
+//     free (p);
+// }
 
 struct page *
-page_lookup (void *upage)
+page_lookup (struct hash *page_table, void *upage)
 {
     struct page p;
     struct hash_elem *e;
     p.upage = upage;
-    e = hash_find (&thread_current ()->page_table, &p.elem);
+    e = hash_find (page_table, &p.elem);
     return e != NULL ? hash_entry (e, struct page, elem) : NULL;
 }
 
 bool
 page_load (void *fault_page)
 {
-    struct page *p = page_lookup (fault_page);
+    struct page *p = page_lookup (&thread_current ()->page_table, fault_page);
     if (p == NULL)
     {
         return false;
@@ -188,8 +187,7 @@ page_load (void *fault_page)
             break;
         }
         case PAGE_STATUS_SWAP:
-            // TODO: implement swap
-            // swap_in (p->swap_index, kpage);
+            swap_in (p->swap_index, kpage);
             break;
         case PAGE_STATUS_FRAME:
             // page shouldn't be here
@@ -237,8 +235,7 @@ page_destructor (struct hash_elem *e, void *aux UNUSED)
     switch (p->status)
     {
         case PAGE_STATUS_SWAP:
-            // TODO: implement swap
-            // swap_free (p->swap_index);
+            swap_free (p->swap_index);
             break;
         case PAGE_STATUS_FRAME:
             // printf("page_destructor: frame\n");
@@ -265,7 +262,5 @@ page_destructor (struct hash_elem *e, void *aux UNUSED)
         default:
             break;
     }
-    // printf("page_destructor: bef free\n");
     free (p);
-    // printf("page_destructor: free\n");
 }
