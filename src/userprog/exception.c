@@ -160,13 +160,12 @@ page_fault (struct intr_frame *f)
   }
   void *upage = pg_round_down (fault_addr);
 
-//   struct page *p = page_lookup (upage);
-
-//   // stack growth
-//   if (p == NULL && fault_addr >= f->esp - 32 && fault_addr >= PHYS_BASE - MAX_STACK_SIZE)
-//   {
-//     page_alloc_zero (upage);
-//   }
+  // stack growth
+  struct page *p = page_lookup (upage);
+  if (p == NULL && fault_addr >= f->esp - 32 && fault_addr >= PHYS_BASE - MAX_STACK_SIZE)
+  {
+    page_alloc_zero (upage);
+  }
 
   if (page_load(upage))
   {
