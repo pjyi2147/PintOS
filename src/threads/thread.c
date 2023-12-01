@@ -295,6 +295,19 @@ thread_exit (void)
   process_exit ();
 #endif
 
+  // project 3
+  // release all locks on thread termination
+  struct thread *cur = thread_current ();
+  struct list_elem *e;
+  struct lock *lock;
+
+  for (e = list_begin (&cur->lock_list); e != list_end (&cur->lock_list); e = list_next (e))
+  {
+    lock = list_entry (e, struct lock, elem);
+    lock_release (lock);
+    e = list_remove (e);
+  }
+
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
@@ -488,6 +501,9 @@ init_thread (struct thread *t, const char *name, int priority)
   sema_init (&t->sema_free, 0);
   t->exec_file = NULL;
 #endif
+
+  // Project 3
+  list_init (&t->lock_list);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);

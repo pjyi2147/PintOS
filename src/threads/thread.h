@@ -116,6 +116,9 @@ struct thread
     struct file *exec_file;            /* Executable file of the process */
 #endif
 
+    // project 3
+    struct list lock_list;              /* List of locks that the thread is holding */
+
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
