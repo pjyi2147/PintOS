@@ -20,6 +20,7 @@
 
 #include "userprog/syscall.h"
 #include "vm/frame.h"
+#include "vm/page.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -216,6 +217,9 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  // clean page table before the files are closed
+  page_table_destroy(&cur->page_table);
+
   for (int i = 2; i < FILE_MAX; i++)
   {
     if (cur->file_array[i] != NULL)
@@ -349,6 +353,12 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
+
+#ifdef VM
+  // Project 3
+  page_table_init (&t->page_table);
+#endif
+
   if (t->pagedir == NULL)
     goto done;
   process_activate ();
@@ -521,6 +531,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (ofs % PGSIZE == 0);
 
   file_seek (file, ofs);
+  // printf("load_segment: start\n");
   while (read_bytes > 0 || zero_bytes > 0)
     {
       /* Calculate how to fill this page.
@@ -549,10 +560,16 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
           return false;
         }
 
+      page_alloc_frame(upage, kpage);
+
+      // printf("load_segment: upage %p, file %p, ofs %d, read %d, zero %d, writable %d\n", upage, file, ofs, read_bytes, zero_bytes, writable);
+      // page_alloc_file(upage, file, ofs, read_bytes, zero_bytes, writable);
+
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
+      // ofs += page_read_bytes;
     }
   return true;
 }
@@ -570,8 +587,10 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
+      {
         *esp = PHYS_BASE;
-        // TODO: update page table here
+        page_alloc_frame(((uint8_t *) PHYS_BASE) - PGSIZE, kpage);
+      }
       else
         frame_free (kpage);
     }

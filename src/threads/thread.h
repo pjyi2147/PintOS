@@ -3,6 +3,7 @@
 
 #include <debug.h>
 #include <list.h>
+#include <hash.h>
 #include <stdint.h>
 
 #include "threads/synch.h"
@@ -118,6 +119,10 @@ struct thread
 
     // project 3
     struct list lock_list;              /* List of locks that the thread is holding */
+
+#ifdef VM
+    struct hash page_table;             /* Hash table of pages */
+#endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
