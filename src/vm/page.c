@@ -113,6 +113,7 @@ page_load (struct hash *page_table, void *upage)
       // hex_dump (upage, kpage, 32, true);
       break;
     case PAGE_STATUS_FILE:
+    {
       //printf("page_load: file read %p\n", upage);
       uint32_t file_read_bytes = file_read_at(p->file, kpage, p->read_bytes, p->ofs);
       if (file_read_bytes != p->read_bytes)
@@ -123,6 +124,7 @@ page_load (struct hash *page_table, void *upage)
       memset (kpage + file_read_bytes, 0, p->zero_bytes);
       break;
     // case PAGE_STATUS_FRAME: it is already loaded to frame! error!
+    }
     default:
       return false;
   }
