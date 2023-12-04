@@ -18,6 +18,7 @@
 #include <string.h>
 #include "vm/page.h"
 #include "vm/mmf.h"
+#include "threads/malloc.h"
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
 
@@ -284,7 +285,9 @@ syscall_close (int fd)
     return;
   }
 
+  lock_acquire(&file_lock);
   file_close(f);
+  lock_release(&file_lock);
   t->file_array[fd] = NULL;
   if (fd < t->min_fd)
   {
@@ -322,15 +325,14 @@ syscall_mmap (int fd, void *vaddr)
   {
     return -1;
   }
-
   return mmf->id;
 }
 
 void
 syscall_munmap (int mmf_id)
 {
+  // printf("syscall_munmap: start\n");
   struct thread *t = thread_current();
-  struct list_elem *e = NULL;
   struct mmf *mmf = NULL;
   void *upage = NULL;
 
@@ -339,38 +341,39 @@ syscall_munmap (int mmf_id)
     return;
   }
 
-  for (e = list_begin(&t->mmf_list); e != list_end(&t->mmf_list); e = list_next(e))
-  {
-    mmf = list_entry(e, struct mmf, elem);
-    if (mmf->id == mmf_id)
-    {
-      break;
-    }
-  }
-
-  if (e == list_end (&t->mmf_list))
+  mmf = mmf_get (mmf_id);
+  // printf("syscall_munmap: check mmf, mmf->upage %p, mmf->file %p, mmf->id %d\n", mmf->upage, mmf->file, mmf->id);
+  if (mmf == NULL)
   {
     return;
   }
 
   upage = mmf->upage;
-
+  int size = file_length(mmf->file);
   off_t ofs;
-  for (ofs = 0; ofs < file_length (mmf->file); ofs += PGSIZE)
+
+  for (ofs = 0; ofs < size; ofs += PGSIZE)
   {
-    struct page *entry = page_get (&t->page_table, upage);
+    struct page *page = page_get (&t->page_table, upage);
+    if (page == NULL)
+    {
+      // printf("syscall_munmap: something wrong?? why no page found? upage %p\n", upage);
+      break;
+    }
+    // printf("syscall_munmap: upage %p\n", upage);
     if (pagedir_is_dirty (t->pagedir, upage))
     {
-      // printf("syscall_munmap: upage %p\n", upage);
       void *kpage = pagedir_get_page(t->pagedir, upage);
       lock_acquire(&file_lock);
-      file_write_at(entry->file, kpage, entry->read_bytes, entry->ofs);
+      file_write_at(page->file, kpage, page->read_bytes, page->ofs);
       lock_release(&file_lock);
     }
-    page_delete (&t->page_table, entry);
+
+    page_delete (&t->page_table, page);
+
     upage += PGSIZE;
   }
-  list_remove(e);
+  list_remove(&mmf->elem);
 }
 
 static void

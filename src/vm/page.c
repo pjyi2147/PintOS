@@ -4,6 +4,7 @@
 #include <string.h>
 #include "threads/malloc.h"
 #include "threads/thread.h"
+#include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "userprog/syscall.h"
 #include "userprog/pagedir.h"
@@ -83,7 +84,7 @@ page_file_init (struct hash *page_table, void *upage,
   p->writable = writable;
 
   hash_insert (page_table, &p->elem);
-
+  // printf("page_file_init:       page %p, upage %p, file %p\n", p, upage, file);
   return p;
 }
 
@@ -114,8 +115,16 @@ page_load (struct hash *page_table, void *upage)
       break;
     case PAGE_STATUS_FILE:
     {
-      //printf("page_load: file read %p\n", upage);
+      bool lock_held = lock_held_by_current_thread(&file_lock);
+      if (!lock_held)
+      {
+        lock_acquire (&file_lock);
+      }
       uint32_t file_read_bytes = file_read_at(p->file, kpage, p->read_bytes, p->ofs);
+      if (!lock_held)
+      {
+        lock_release (&file_lock);
+      }
       if (file_read_bytes != p->read_bytes)
       {
         frame_free (p->kpage);
