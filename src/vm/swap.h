@@ -8,5 +8,6 @@
 void swap_table_init(void);
 void swap_in(struct page *p, void *kva);
 int swap_out(void *kva);
+void swap_free(unsigned swap_index);
 
 #endif /* VM_SWAP_H */
