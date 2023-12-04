@@ -22,10 +22,10 @@ void swap_table_init(void)
 void swap_in(struct page *p, void *kva)
 {
   int i;
-  int swap_index = p->swap_index;
+  unsigned swap_index = p->swap_index;
 
   lock_acquire (&swap_lock);
-  if (swap_index > bitmap_size (swap_table) || swap_index < 0)
+  if (swap_index > bitmap_size (swap_table))
   {
     syscall_exit (-1);
   }

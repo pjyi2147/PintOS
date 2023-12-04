@@ -17,6 +17,7 @@
 // project 3
 #include <string.h>
 #include "vm/page.h"
+#include "vm/mmf.h"
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
 
