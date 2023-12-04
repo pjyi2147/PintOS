@@ -103,38 +103,36 @@ page_alloc_file (void *upage, struct file *file, off_t ofs,
     // printf("page_alloc_file end, writable: %d\n", p->writable);
 }
 
-// void
-// page_free (struct hash *page_table, void *upage)
-// {
-//     struct page *p;
-//     p = page_lookup (page_table, upage);
+void
+page_free (struct hash *page_table, void *upage)
+{
+    struct page *p;
+    p = page_lookup (page_table, upage);
 
-//     if (p == NULL)
-//     {
-//         // double free???
-//         syscall_exit (-1);
-//     }
+    if (p == NULL)
+    {
+        // double free???
+        syscall_exit (-1);
+    }
 
-//     switch (p->status)
-//     {
-//         case PAGE_STATUS_FRAME:
-//             frame_free (p->kpage);
-//             break;
-//         case PAGE_STATUS_SWAP:
-//             swap_free (p->swap_index);
-//             break;
-//         case PAGE_STATUS_ZERO:
-//         case PAGE_STATUS_FILE:
-//             // do nothing
-//             break;
-//         default:
-//             // do nothing
-//             break;
-//     }
+    switch (p->status)
+    {
+        case PAGE_STATUS_FRAME:
+            frame_free (p->kpage);
+            break;
+        case PAGE_STATUS_SWAP:
+            swap_free (p->swap_index);
+            break;
+        case PAGE_STATUS_ZERO:
+        case PAGE_STATUS_FILE:
+        default:
+            // do nothing
+            break;
+    }
 
-//     hash_delete (&thread_current ()->page_table, &p->elem);
-//     free (p);
-// }
+    hash_delete (&thread_current ()->page_table, &p->elem);
+    free (p);
+}
 
 struct page *
 page_lookup (struct hash *page_table, void *upage)

@@ -41,7 +41,7 @@ void page_alloc_zero (void *upage);
 void page_alloc_file (void *upage, struct file *file, off_t ofs,
                       uint32_t read_bytes, uint32_t zero_bytes, bool writable);
 
-// void page_free (struct hash *page_table, void *upage);
+void page_free (struct hash *page_table, void *upage);
 
 struct page *page_lookup (struct hash *page_table, void *upage);
 

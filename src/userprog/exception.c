@@ -151,7 +151,7 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  // printf("page_fault: %p\n", fault_addr);
+//   printf("page_fault: %p\n", fault_addr);
 
   if (fault_addr == NULL || is_kernel_vaddr(fault_addr) || !not_present)
   {

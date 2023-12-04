@@ -14,6 +14,12 @@
 #include "devices/input.h"
 #include "userprog/process.h"
 
+// project 3
+#include "userprog/pagedir.h"
+#include "threads/malloc.h"
+#include "vm/page.h"
+#include "vm/mmf.h"
+
 static void syscall_handler (struct intr_frame *);
 
 struct lock file_lock;
@@ -25,7 +31,10 @@ get_stack_args (void *esp, void **arg, int count)
   for (i = 0; i < count; i++)
   {
     if (!is_user_vaddr(esp + sizeof(void *) * i))
+    {
+      // printf("get_stack_args: %p\n", esp + sizeof(void *) * i);
       syscall_exit(-1);
+    }
 
     arg[i] = *(void **)(esp + sizeof(void *) * i);
   }
@@ -89,11 +98,13 @@ syscall_create (const char *file, unsigned initial_size)
 bool
 syscall_remove (const char *file)
 {
+  // printf("syscallremove: %p\n", file);
   if (!is_user_vaddr(file) || file == NULL)
   {
     syscall_exit(-1);
   }
-  return filesys_remove(file);
+  bool ret = filesys_remove(file);
+  return ret;
 }
 
 int
@@ -285,6 +296,83 @@ syscall_close (int fd)
   }
 }
 
+int
+syscall_mmap (int fd, void *vaddr)
+{
+  struct thread *t = thread_current();
+  struct file *f;
+  struct file *reopen_file;
+  struct mmf *mmf;
+
+  if (fd < 2 || fd >= FILE_MAX)
+  {
+    return -1;
+  }
+
+  f = t->file_array[fd];
+  if (f == NULL || file_length(f) == 0 || vaddr == NULL || pg_ofs(vaddr) != 0)
+  {
+    return -1;
+  }
+
+  reopen_file = file_reopen(f);
+  if (reopen_file == NULL)
+  {
+    return -1;
+  }
+
+  mmf = mmf_init(t->mmf_id++, reopen_file, vaddr);
+  if (mmf == NULL)
+  {
+    return -1;
+  }
+
+  return mmf->id;
+}
+
+void
+syscall_munmap (int mmf_id)
+{
+  struct thread *t = thread_current();
+  struct mmf *mmf = NULL;
+  void *upage = NULL;
+
+  if (mmf_id >= t->mmf_id)
+  {
+    // syscall_exit(-1);
+    return;
+  }
+
+  mmf = mmf_lookup(mmf_id);
+
+  if (mmf == NULL)
+  {
+    // syscall_exit(-1);
+    return;
+  }
+
+  upage = mmf->upage;
+
+  off_t ofs;
+  for (ofs = 0; ofs < file_length (mmf->file); ofs += PGSIZE)
+  {
+    struct page *page = page_lookup (&t->page_table, upage);
+    if (pagedir_is_dirty (t->pagedir, upage))
+    {
+      // printf("syscall_munmap: upage %p\n", upage);
+      void *kpage = pagedir_get_page(t->pagedir, upage);
+      lock_acquire(&file_lock);
+      file_write_at(page->file, kpage, page->read_bytes, page->ofs);
+      lock_release(&file_lock);
+    }
+    page_free (&t->page_table, page);
+    upage += PGSIZE;
+  }
+  file_close(mmf->file);
+  list_remove(&mmf->elem);
+  free(mmf);
+}
+
 static void
 syscall_handler (struct intr_frame *f)
 {
@@ -356,6 +444,14 @@ syscall_handler (struct intr_frame *f)
     case SYS_CLOSE:
       get_stack_args(f->esp + 4, arg, 1);
       syscall_close((int)arg[0]);
+      break;
+    case SYS_MMAP:
+      get_stack_args(f->esp + 4, arg, 2);
+      f->eax = syscall_mmap((int)arg[0], (void *)arg[1]);
+      break;
+    case SYS_MUNMAP:
+      get_stack_args(f->esp + 4, arg, 1);
+      syscall_munmap((int)arg[0]);
       break;
     default:
       syscall_exit(-1);

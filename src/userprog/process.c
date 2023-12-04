@@ -21,6 +21,7 @@
 #include "userprog/syscall.h"
 #include "vm/frame.h"
 #include "vm/page.h"
+#include "vm/mmf.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -214,11 +215,15 @@ process_wait (tid_t child_tid)
 void
 process_exit (void)
 {
+  // printf("process_exit: start\n");
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
   // clean page table before the files are closed
   page_table_destroy(&cur->page_table);
+  // printf("process_exit: page_table_destroy\n");
+  mmf_cleanup();
+  // printf("process_exit: mmf_cleanup\n");
 
   for (int i = 2; i < FILE_MAX; i++)
   {
@@ -357,6 +362,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
 #ifdef VM
   // Project 3
   page_table_init (&t->page_table);
+  list_init (&t->mmf_list);
+  t->mmf_id = 0;
 #endif
 
   if (t->pagedir == NULL)

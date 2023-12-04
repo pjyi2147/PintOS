@@ -122,6 +122,9 @@ struct thread
 
 #ifdef VM
     struct hash page_table;             /* Hash table of pages */
+
+    struct list mmf_list;               /* List of memory mapped files */
+    int mmf_id;                         /* ID of the next memory mapped file */
 #endif
 
     /* Owned by thread.c. */
