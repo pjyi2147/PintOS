@@ -140,12 +140,16 @@ frame_evict(void)
       pagedir_is_dirty(fe->thread->pagedir, fe->upage))
   {
     // printf("frame_evict: file write; dirty\n");
-    if (!lock_held_by_current_thread(&file_lock))
+    bool lock_held = lock_held_by_current_thread(&file_lock);
+    if (!lock_held)
     {
       lock_acquire(&file_lock);
     }
     file_write_at(pe->file, fe->kpage, pe->read_bytes, pe->ofs);
-    lock_release(&file_lock);
+    if (!lock_held)
+    {
+      lock_release(&file_lock);
+    }
   }
 
   // printf("frame_evict: swap_out\n");
