@@ -6,14 +6,14 @@
 
 struct mmf
 {
-   int id;
-   struct file *file;
-   struct list_elem elem;
-
-   void *upage;
+    int id;
+    struct list_elem elem;
+    struct file *file;
+    void *upage;
 };
 
 struct mmf *mmf_init(int id, struct file *file, void *upage);
 struct mmf *mmf_get(int id);
+void mmf_cleanup (void);
 
 #endif /* VM_MMF_H */
