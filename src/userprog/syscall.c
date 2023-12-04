@@ -360,7 +360,7 @@ syscall_munmap (int mmf_id)
     struct page *entry = page_get (&t->page_table, upage);
     if (pagedir_is_dirty (t->pagedir, upage))
     {
-      printf("syscall_munmap: upage %p\n", upage);
+      // printf("syscall_munmap: upage %p\n", upage);
       void *kpage = pagedir_get_page(t->pagedir, upage);
       lock_acquire(&file_lock);
       file_write_at(entry->file, kpage, entry->read_bytes, entry->ofs);
