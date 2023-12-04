@@ -185,15 +185,18 @@ page_destructor (struct hash_elem *e, void *aux UNUSED)
   {
     if (p->origin == PAGE_STATUS_FILE && pagedir_is_dirty (thread_current ()->pagedir, p->upage))
     {
-      if (!lock_held_by_current_thread(&file_lock))
+      bool lock_held = lock_held_by_current_thread(&file_lock);
+      if (!lock_held)
       {
         lock_acquire(&file_lock);
       }
       file_write_at (p->file, p->kpage, p->read_bytes, p->ofs);
-      lock_release(&file_lock);
+      if (!lock_held)
+      {
+        lock_release(&file_lock);
+      }
     }
     frame_free (p->kpage);
   }
-
   free (p);
 }
