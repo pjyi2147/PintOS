@@ -65,6 +65,7 @@ userprog_SRC += userprog/tss.c		# TSS management.
 vm_SRC  = vm/frame.c			# Frame allocation file.
 vm_SRC += vm/page.c			# Supplementary page file.
 vm_SRC += vm/swap.c			# Swap operation file.
+vm_SRC += vm/mmf.c			# MMF file.
 
 # Filesystem code.
 filesys_SRC  = filesys/filesys.c	# Filesystem core.

@@ -30,15 +30,6 @@ typedef int tid_t;
 #define PRI_MAX 63                      /* Highest priority. */
 #define FILE_MAX 128                    /* Maximum number of files a process can open */
 
-struct mmf
-{
-   int id;
-   struct file *file;
-   struct list_elem elem;
-
-   void *upage;
-};
-
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -173,8 +164,5 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
-
-struct mmf *mmf_init(int id, struct file *file, void *upage);
-struct mmf *mmf_get(int id);
 
 #endif /* threads/thread.h */
