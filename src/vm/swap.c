@@ -1,5 +1,6 @@
 #include "vm/swap.h"
 #include <bitmap.h>
+#include <stdio.h>
 #include "threads/vaddr.h"
 #include "threads/synch.h"
 #include "userprog/syscall.h"
@@ -60,4 +61,20 @@ int swap_out(void *kva)
   }
 
   return swap_index;
+}
+
+void swap_free(unsigned swap_index)
+{
+  lock_acquire(&swap_lock);
+    if (swap_index > bitmap_size (swap_table))
+  {
+    syscall_exit (-1);
+  }
+
+  if (bitmap_test (swap_table, swap_index) == false)
+  {
+    syscall_exit (-1);
+  }
+  bitmap_set(swap_table, swap_index, false);
+  lock_release(&swap_lock);
 }

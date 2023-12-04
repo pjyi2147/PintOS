@@ -180,23 +180,33 @@ static void
 page_destructor (struct hash_elem *e, void *aux UNUSED)
 {
   struct page *p = hash_entry (e, struct page, elem);
-
-  if (p->status == PAGE_STATUS_FRAME)
+  switch (p->status)
   {
-    if (p->origin == PAGE_STATUS_FILE && pagedir_is_dirty (thread_current ()->pagedir, p->upage))
-    {
-      bool lock_held = lock_held_by_current_thread(&file_lock);
-      if (!lock_held)
+    case PAGE_STATUS_FRAME:
+      if (p->origin == PAGE_STATUS_FILE && p->writable &&
+          pagedir_is_dirty (thread_current ()->pagedir, p->upage))
       {
-        lock_acquire(&file_lock);
+        bool lock_held = lock_held_by_current_thread(&file_lock);
+        if (!lock_held)
+        {
+          lock_acquire(&file_lock);
+        }
+        file_write_at (p->file, p->kpage, p->read_bytes, p->ofs);
+        if (!lock_held)
+        {
+          lock_release(&file_lock);
+        }
       }
-      file_write_at (p->file, p->kpage, p->read_bytes, p->ofs);
-      if (!lock_held)
-      {
-        lock_release(&file_lock);
-      }
-    }
-    frame_free (p->kpage);
+      frame_free (p->kpage);
+      break;
+    case PAGE_STATUS_SWAP:
+      swap_free (p->swap_index);
+      break;
+    case PAGE_STATUS_FILE:
+      break;
+    case PAGE_STATUS_ZERO:
+      break;
   }
+
   free (p);
 }
